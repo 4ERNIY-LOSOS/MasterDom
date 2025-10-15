@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: masterdom_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: masterdom
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d masterdom"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  migrate:
+    image: migrate/migrate
+    container_name: masterdom_migrate
+    volumes:
+      - ./api/db/migration:/migrations
+    # Команда для выполнения миграций. Обратите внимание на `sslmode=disable` для локальной разработки.
+    command: ["-path", "/migrations", "-database", "postgres://user:password@db:5432/masterdom?sslmode=disable", "up"]
+    depends_on:
+      db:
+        condition: service_healthy
+    # Этот сервис должен выполниться один раз и остановиться.
+    # `restart: on-failure` означает, что он перезапустится, только если миграция не удалась.
+    restart: on-failure
+
+  # Сервис бэкенда (Go API)
+  api:
+    build:
+      context: ./api
+    container_name: masterdom_api
+    ports:
+      - "8080:8080"
+    # API зависит от того, чтобы база данных была готова к работе.
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Сервис фронтенда (React + Nginx)
+  web:
+    build:
+      context: ./web
+    container_name: masterdom_web
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

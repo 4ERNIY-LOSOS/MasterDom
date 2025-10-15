@@ -1,0 +1,3 @@
+ALTER TABLE jobs
+ALTER COLUMN client_id TYPE INT,
+ALTER COLUMN master_id TYPE INT;
