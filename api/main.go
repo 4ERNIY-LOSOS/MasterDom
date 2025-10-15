@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"golang.orgx/crypto/bcrypt"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // --- Новые структуры для регистрации ---
