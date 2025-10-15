@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { RegisterPage } from './pages/Register';
+import { RegisterPage } from './pages/RegisterPage'; // Изменено
+import { RegisterClientPage } from './pages/RegisterClient'; // Добавлено
+import { RegisterMasterPage } from './pages/RegisterMaster'; // Добавлено
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './App.css';
@@ -65,6 +67,8 @@ function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/register/client" element={<RegisterClientPage />} />
+              <Route path="/register/master" element={<RegisterMasterPage />} />
               <Route path="/login" element={<LoginPage />} />
             </Routes>
           </main>

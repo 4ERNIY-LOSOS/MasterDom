@@ -1,0 +1,56 @@
+.register-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 2rem;
+  text-align: center;
+  background-color: #2e2e3e;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.register-container h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: #a67cde;
+}
+
+.register-container p {
+  font-size: 1.2rem;
+  margin-bottom: 2.5rem;
+  color: #c0c0c0;
+}
+
+.role-selection {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.role-card {
+  background-color: #3a3a4a;
+  padding: 2rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #fff;
+  flex: 1;
+  max-width: 300px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid #4a4a5a;
+}
+
+.role-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  border-color: #a67cde;
+}
+
+.role-card h3 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  color: #a67cde;
+}
+
+.role-card p {
+  font-size: 1rem;
+  color: #c0c0c0;
+}

@@ -11,15 +11,27 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"golang.org/x/crypto/bcrypt"
+	"golang.orgx/crypto/bcrypt"
 )
 
-// --- Структуры для данных ---
+// --- Новые структуры для регистрации ---
 
-type RegisterPayload struct {
-	Email     string `json:"email" binding:"required"`
-	Password  string `json:"password" binding:"required"`
-	FirstName string `json:"firstName" binding:"required"`
+type RegisterClientPayload struct {
+	Email       string  `json:"email" binding:"required,email"`
+	Password    string  `json:"password" binding:"required,min=8"`
+	FirstName   string  `json:"firstName" binding:"required"`
+	LastName    *string `json:"lastName"`
+	PhoneNumber *string `json:"phoneNumber"`
+}
+
+type RegisterMasterPayload struct {
+	Email             string  `json:"email" binding:"required,email"`
+	Password          string  `json:"password" binding:"required,min=8"`
+	FirstName         string  `json:"firstName" binding:"required"`
+	LastName          *string `json:"lastName"`
+	PhoneNumber       *string `json:"phoneNumber"`
+	Bio               *string `json:"bio"`
+	YearsOfExperience *int    `json:"yearsOfExperience"`
 }
 
 type LoginPayload struct {
@@ -27,14 +39,8 @@ type LoginPayload struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type CreateJobPayload struct {
-	Title       string   `json:"title" binding:"required"`
-	Description *string  `json:"description"`
-	LocationLat *float64 `json:"location_lat"`
-	LocationLon *float64 `json:"location_lon"`
-}
+// --- Структуры для работы с БД ---
 
-// User для выборки из БД
 type User struct {
 	ID           string
 	Email        string
@@ -42,30 +48,17 @@ type User struct {
 	Role         string
 }
 
-// Claims для JWT токена
+// Claims для JWT токена (остается без изменений)
 type Claims struct {
 	UserID string `json:"userId"`
 	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-// Job для данных из таблицы jobs
-type Job struct {
-	ID          string    `json:"id"`
-	ClientID    string    `json:"client_id"`
-	MasterID    *string   `json:"master_id"` // Указатель, так как может быть NULL
-	Title       string    `json:"title"`
-	Description *string   `json:"description"` // Указатель, так как может быть NULL
-	Status      string    `json:"status"`
-	LocationLat *float64  `json:"location_lat"` // Указатель, так как может быть NULL
-	LocationLon *float64  `json:"location_lon"` // Указатель, так как может быть NULL
-	CreatedAt   time.Time `json:"created_at"`
-}
+// Ключ для JWT (в реальном приложении - из env)
+var jwtKey = []byte("my_super_secret_key_for_a_professional_project")
 
-// В реальном приложении этот ключ должен храниться в переменных окружения, а не в коде!
-var jwtKey = []byte("my_super_secret_key_for_kursach")
-
-// AuthMiddleware для проверки JWT токена
+// AuthMiddleware (остается без изменений)
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -73,34 +66,25 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(401, gin.H{"error": "Authorization header is missing"})
 			return
 		}
-
-		// Ожидаем формат "Bearer <token>"
 		const bearerSchema = "Bearer "
 		if len(authHeader) < len(bearerSchema) || authHeader[:len(bearerSchema)] != bearerSchema {
 			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid authorization header format"})
 			return
 		}
 		tokenString := authHeader[len(bearerSchema):]
-
 		claims := &Claims{}
-
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			// Убедимся, что метод подписи соответствует ожиданиям
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 			return jwtKey, nil
 		})
-
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid or expired token"})
 			return
 		}
-
-		// Сохраняем информацию о пользователе в контексте для последующих обработчиков
 		c.Set("userID", claims.UserID)
 		c.Set("role", claims.Role)
-
 		c.Next()
 	}
 }
@@ -115,17 +99,16 @@ func main() {
 	}
 	defer dbpool.Close()
 
-	err = dbpool.Ping(context.Background())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to ping database: %v\n", err)
-		os.Exit(1)
+	if err := dbpool.Ping(context.Background()); err != nil {
+		log.Fatalf("Unable to ping database: %v\n", err)
 	}
 	log.Println("Successfully connected to the database")
 
 	r := gin.Default()
-
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000"}
+	config.AllowOrigins = []string{"http://localhost:3000"} // Адрес фронтенда
+	config.AllowMethods = []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}
+	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	r.Use(cors.New(config))
 
 	api := r.Group("/api")
@@ -134,20 +117,62 @@ func main() {
 			c.JSON(200, gin.H{"status": "ok"})
 		})
 
-		api.GET("/users/count", func(c *gin.Context) {
-			var count int64
-			err := dbpool.QueryRow(context.Background(), "SELECT COUNT(*) FROM users").Scan(&count)
-			if err != nil {
-				c.JSON(500, gin.H{"error": "Failed to query database", "details": err.Error()})
-				return
-			}
-			c.JSON(200, gin.H{"user_count": count})
-		})
-
 		auth := api.Group("/auth")
 		{
-			auth.POST("/register", func(c *gin.Context) {
-				var payload RegisterPayload
+			// --- НОВЫЕ МАРШРУТЫ РЕГИСТРАЦИИ ---
+
+			// Регистрация клиента
+			auth.POST("/register/client", func(c *gin.Context) {
+				var payload RegisterClientPayload
+				if err := c.ShouldBindJSON(&payload); err != nil {
+					c.JSON(400, gin.H{"error": "Invalid input", "details": err.Error()})
+					return
+				}
+
+				hashedPassword, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+				if err != nil {
+					c.JSON(500, gin.H{"error": "Failed to hash password"})
+					return
+				}
+
+				tx, err := dbpool.Begin(context.Background())
+				if err != nil {
+					c.JSON(500, gin.H{"error": "Failed to begin transaction"})
+					return
+				}
+				defer tx.Rollback(context.Background()) // Откат в случае ошибки
+
+				// 1. Создаем запись в таблице users
+				var userID string
+				err = tx.QueryRow(context.Background(),
+					"INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'client') RETURNING id",
+					payload.Email, string(hashedPassword)).Scan(&userID)
+				if err != nil {
+					c.JSON(500, gin.H{"error": "Failed to create user", "details": err.Error()})
+					return
+				}
+
+				// 2. Создаем запись в таблице client_profiles
+				_, err = tx.Exec(context.Background(),
+					"INSERT INTO client_profiles (user_id, first_name, last_name, phone_number) VALUES ($1, $2, $3, $4)",
+					userID, payload.FirstName, payload.LastName, payload.PhoneNumber)
+				if err != nil {
+					c.JSON(500, gin.H{"error": "Failed to create client profile", "details": err.Error()})
+					return
+				}
+
+				// Если все успешно, коммитим транзакцию
+				if err := tx.Commit(context.Background()); err != nil {
+					c.JSON(500, gin.H{"error": "Failed to commit transaction"})
+					return
+				}
+
+				c.JSON(201, gin.H{"message": "Client registered successfully", "userId": userID})
+			})
+
+			// Регистрация мастера
+			auth.POST("/register/master", func(c *gin.Context) {
+				var payload RegisterMasterPayload
 				if err := c.ShouldBindJSON(&payload); err != nil {
 					c.JSON(400, gin.H{"error": "Invalid input", "details": err.Error()})
 					return
@@ -166,33 +191,35 @@ func main() {
 				}
 				defer tx.Rollback(context.Background())
 
+				// 1. Создаем запись в таблице users
 				var userID string
 				err = tx.QueryRow(context.Background(),
-					"INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'client') RETURNING id",
+					"INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'master') RETURNING id",
 					payload.Email, string(hashedPassword)).Scan(&userID)
 				if err != nil {
 					c.JSON(500, gin.H{"error": "Failed to create user", "details": err.Error()})
 					return
 				}
 
+				// 2. Создаем запись в таблице master_profiles
 				_, err = tx.Exec(context.Background(),
-					"INSERT INTO client_profiles (user_id, first_name) VALUES ($1, $2)",
-					userID, payload.FirstName)
+					`INSERT INTO master_profiles (user_id, first_name, last_name, phone_number, bio, years_of_experience)
+					 VALUES ($1, $2, $3, $4, $5, $6)`,
+					userID, payload.FirstName, payload.LastName, payload.PhoneNumber, payload.Bio, payload.YearsOfExperience)
 				if err != nil {
-					c.JSON(500, gin.H{"error": "Failed to create client profile", "details": err.Error()})
+					c.JSON(500, gin.H{"error": "Failed to create master profile", "details": err.Error()})
 					return
 				}
 
-				err = tx.Commit(context.Background())
-				if err != nil {
+				if err := tx.Commit(context.Background()); err != nil {
 					c.JSON(500, gin.H{"error": "Failed to commit transaction"})
 					return
 				}
 
-				c.JSON(201, gin.H{"message": "User created successfully", "userId": userID})
+				c.JSON(201, gin.H{"message": "Master registered successfully", "userId": userID})
 			})
 
-			// Новый эндпоинт для входа
+			// Эндпоинт для входа (логика не меняется, но теперь обслуживает обе роли)
 			auth.POST("/login", func(c *gin.Context) {
 				var payload LoginPayload
 				if err := c.ShouldBindJSON(&payload); err != nil {
@@ -201,17 +228,15 @@ func main() {
 				}
 
 				var user User
-				err = dbpool.QueryRow(context.Background(),
+				err := dbpool.QueryRow(context.Background(),
 					"SELECT id, email, password_hash, role FROM users WHERE email = $1",
 					payload.Email).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Role)
 				if err != nil {
-					// В реальности, лучше не говорить, что именно не так: email или пароль
 					c.JSON(401, gin.H{"error": "Invalid credentials"})
 					return
 				}
 
-				err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(payload.Password))
-				if err != nil {
+				if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(payload.Password)); err != nil {
 					c.JSON(401, gin.H{"error": "Invalid credentials"})
 					return
 				}
@@ -232,119 +257,15 @@ func main() {
 					return
 				}
 
-				c.JSON(200, gin.H{"token": tokenString})
+				c.JSON(200, gin.H{"token": tokenString, "role": user.Role})
 			})
 		}
 
-		// Защищенная группа, требующая аутентификации
+		// Защищенная группа (пока пустая, будет наполняться)
 		protected := api.Group("/")
 		protected.Use(AuthMiddleware())
 		{
-			protected.GET("/jobs", func(c *gin.Context) {
-				rows, err := dbpool.Query(context.Background(), "SELECT id, client_id, master_id, title, description, status, location_lat, location_lon, created_at FROM jobs ORDER BY created_at DESC")
-				if err != nil {
-					c.JSON(500, gin.H{"error": "Failed to query jobs", "details": err.Error()})
-					return
-				}
-				defer rows.Close()
-
-				jobs := make([]Job, 0)
-				for rows.Next() {
-					var job Job
-					if err := rows.Scan(&job.ID, &job.ClientID, &job.MasterID, &job.Title, &job.Description, &job.Status, &job.LocationLat, &job.LocationLon, &job.CreatedAt); err != nil {
-						c.JSON(500, gin.H{"error": "Failed to scan job row", "details": err.Error()})
-						return
-					}
-					jobs = append(jobs, job)
-				}
-
-				if err := rows.Err(); err != nil {
-					c.JSON(500, gin.H{"error": "Error iterating job rows", "details": err.Error()})
-					return
-				}
-
-				c.JSON(200, jobs)
-			})
-
-			protected.POST("/jobs", func(c *gin.Context) {
-				var payload CreateJobPayload
-				if err := c.ShouldBindJSON(&payload); err != nil {
-					c.JSON(400, gin.H{"error": "Invalid input", "details": err.Error()})
-					return
-				}
-
-				userID, exists := c.Get("userID")
-				if !exists {
-					// Эта проверка избыточна, если AuthMiddleware всегда отрабатывает, но она полезна для надежности
-					c.JSON(500, gin.H{"error": "User ID not found in context"})
-					return
-				}
-
-				var newJobID string // Изменено на string для UUID
-				sql := `INSERT INTO jobs (client_id, title, description, status, location_lat, location_lon)
-						VALUES ($1, $2, $3, 'open', $4, $5) RETURNING id`
-
-				err = dbpool.QueryRow(context.Background(), sql, userID, payload.Title, payload.Description, payload.LocationLat, payload.LocationLon).Scan(&newJobID)
-				if err != nil {
-					c.JSON(500, gin.H{"error": "Failed to create job", "details": err.Error()})
-					return
-				}
-
-				c.JSON(201, gin.H{"message": "Job created successfully", "jobID": newJobID})
-			})
-
-			// Новый эндпоинт для получения одной заявки по ID
-			protected.GET("/jobs/:id", func(c *gin.Context) {
-				jobID := c.Param("id")
-
-				var job Job
-				err := dbpool.QueryRow(context.Background(),
-					`SELECT id, client_id, master_id, title, description, status, location_lat, location_lon, created_at
-					 FROM jobs WHERE id = $1`,
-					jobID).Scan(&job.ID, &job.ClientID, &job.MasterID, &job.Title, &job.Description, &job.Status, &job.LocationLat, &job.LocationLon, &job.CreatedAt)
-
-				if err != nil {
-					// pgx.ErrNoRows будет здесь, если заявка не найдена
-					c.JSON(404, gin.H{"error": "Job not found"})
-					return
-				}
-
-				c.JSON(200, job)
-			})
-
-			// Новый эндпоинт для мастера, чтобы взять заявку
-			protected.PATCH("/jobs/:id/take", func(c *gin.Context) {
-				jobID := c.Param("id")
-
-				// Проверяем роль пользователя. Только 'master' может брать заявки.
-				userRole, _ := c.Get("role")
-				if userRole != "master" {
-					c.JSON(403, gin.H{"error": "Only masters can take jobs"})
-					return
-				}
-
-				masterID, _ := c.Get("userID")
-
-				// Обновляем заявку: устанавливаем master_id и меняем статус
-				// Также проверяем, что заявка еще не взята (status = 'open')
-				commandTag, err := dbpool.Exec(context.Background(),
-					`UPDATE jobs SET master_id = $1, status = 'in_progress'
-					 WHERE id = $2 AND status = 'open'`,
-					masterID, jobID)
-
-				if err != nil {
-					c.JSON(500, gin.H{"error": "Failed to update job", "details": err.Error()})
-					return
-				}
-
-				// Exec возвращает количество затронутых строк. Если 0, значит заявка не была найдена или уже была взята.
-				if commandTag.RowsAffected() == 0 {
-					c.JSON(404, gin.H{"error": "Job not found or already taken"})
-					return
-				}
-
-				c.JSON(200, gin.H{"message": "Job taken successfully"})
-			})
+			// Сюда будем добавлять эндпоинты для работы с заявками, чатами и т.д.
 		}
 	}
 
