@@ -1,26 +1,33 @@
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Создаем перечисляемый тип для ролей
+CREATE TYPE user_role AS ENUM ('client', 'master', 'admin');
 
+-- Создаем таблицу пользователей
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('client', 'master', 'admin')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role user_role NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Создаем таблицу профилей мастеров
 CREATE TABLE master_profiles (
-    user_id UUID PRIMARY KEY,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
     bio TEXT,
-    years_of_experience INT,
-    average_rating DECIMAL(3, 2),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    years_of_experience INT DEFAULT 0,
+    average_rating NUMERIC(3, 2) DEFAULT 0.00,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Создаем таблицу профилей клиентов
 CREATE TABLE client_profiles (
-    user_id UUID PRIMARY KEY,
-    first_name VARCHAR(100) NOT NULL,
-    phone_number VARCHAR(20),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    first_name TEXT NOT NULL,
+    phone_number TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

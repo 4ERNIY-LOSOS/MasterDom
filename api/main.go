@@ -51,7 +51,7 @@ type Claims struct {
 
 // Job для данных из таблицы jobs
 type Job struct {
-	ID          int       `json:"id"`
+	ID          string    `json:"id"`
 	ClientID    string    `json:"client_id"`
 	MasterID    *string   `json:"master_id"` // Указатель, так как может быть NULL
 	Title       string    `json:"title"`
@@ -280,7 +280,7 @@ func main() {
 					return
 				}
 
-				var newJobID int
+				var newJobID string // Изменено на string для UUID
 				sql := `INSERT INTO jobs (client_id, title, description, status, location_lat, location_lon)
 						VALUES ($1, $2, $3, 'open', $4, $5) RETURNING id`
 
@@ -291,6 +291,59 @@ func main() {
 				}
 
 				c.JSON(201, gin.H{"message": "Job created successfully", "jobID": newJobID})
+			})
+
+			// Новый эндпоинт для получения одной заявки по ID
+			protected.GET("/jobs/:id", func(c *gin.Context) {
+				jobID := c.Param("id")
+
+				var job Job
+				err := dbpool.QueryRow(context.Background(),
+					`SELECT id, client_id, master_id, title, description, status, location_lat, location_lon, created_at
+					 FROM jobs WHERE id = $1`,
+					jobID).Scan(&job.ID, &job.ClientID, &job.MasterID, &job.Title, &job.Description, &job.Status, &job.LocationLat, &job.LocationLon, &job.CreatedAt)
+
+				if err != nil {
+					// pgx.ErrNoRows будет здесь, если заявка не найдена
+					c.JSON(404, gin.H{"error": "Job not found"})
+					return
+				}
+
+				c.JSON(200, job)
+			})
+
+			// Новый эндпоинт для мастера, чтобы взять заявку
+			protected.PATCH("/jobs/:id/take", func(c *gin.Context) {
+				jobID := c.Param("id")
+
+				// Проверяем роль пользователя. Только 'master' может брать заявки.
+				userRole, _ := c.Get("role")
+				if userRole != "master" {
+					c.JSON(403, gin.H{"error": "Only masters can take jobs"})
+					return
+				}
+
+				masterID, _ := c.Get("userID")
+
+				// Обновляем заявку: устанавливаем master_id и меняем статус
+				// Также проверяем, что заявка еще не взята (status = 'open')
+				commandTag, err := dbpool.Exec(context.Background(),
+					`UPDATE jobs SET master_id = $1, status = 'in_progress'
+					 WHERE id = $2 AND status = 'open'`,
+					masterID, jobID)
+
+				if err != nil {
+					c.JSON(500, gin.H{"error": "Failed to update job", "details": err.Error()})
+					return
+				}
+
+				// Exec возвращает количество затронутых строк. Если 0, значит заявка не была найдена или уже была взята.
+				if commandTag.RowsAffected() == 0 {
+					c.JSON(404, gin.H{"error": "Job not found or already taken"})
+					return
+				}
+
+				c.JSON(200, gin.H{"message": "Job taken successfully"})
 			})
 		}
 	}
