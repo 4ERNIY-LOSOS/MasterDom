@@ -1,0 +1,110 @@
+{
+  "nav": {
+    "home": "Home",
+    "offers": "Offers",
+    "adminPanel": "Admin Panel",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout"
+  },
+  "homePage": {
+    "welcome": "Welcome to MasterDom",
+    "loggedIn": "You are logged in. Your user ID is: {{userId}}",
+    "loggedOut": "Please login or register to use the service."
+  },
+  "loginPage": {
+    "title": "Login",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "loginButton": "Login",
+    "loggingIn": "Logging in...",
+    "success": "Login successful! Redirecting...",
+    "errorPrefix": "Error"
+  },
+  "registerPage": {
+    "title": "Register",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "firstNamePlaceholder": "First Name",
+    "lastNamePlaceholder": "Last Name (optional)",
+    "phonePlaceholder": "Phone Number (optional)",
+    "registerButton": "Register",
+    "registering": "Registering...",
+    "success": "Registration successful!",
+    "errorPrefix": "Error"
+  },
+  "offersPage": {
+    "mastersOffers": "Masters' Offers",
+    "clientsRequests": "Clients' Requests",
+    "createOfferTitle": "Create New Offer",
+    "offerTypeLabel": "Offer Type:",
+    "offerTypeMaster": "Service Offer (I am a Master)",
+    "offerTypeClient": "Service Request (I need a Master)",
+    "categoryLabel": "Category",
+    "selectCategory": "-- Select a Category --",
+    "titleLabel": "Title",
+    "descriptionLabel": "Description",
+    "createOfferButton": "Create Offer",
+    "submitting": "Submitting...",
+    "loading": "Loading...",
+    "noOffers": "No offers found for this category.",
+    "postedBy": "From:",
+    "postedDate": "Posted:"
+  },
+  "adminPage": {
+    "title": "Admin Panel",
+    "dashboardTitle": "Dashboard",
+    "stats": {
+      "totalUsers": "Total Users",
+      "totalOffers": "Total Offers",
+      "totalJobs": "Total Jobs",
+      "serviceRequests": "Service Requests",
+      "serviceOffers": "Service Offers"
+    },
+    "userManagementTitle": "User Management",
+    "userTable": {
+      "email": "Email",
+      "name": "Name",
+      "role": "Role",
+      "admin": "Admin",
+      "actions": "Actions"
+    },
+    "offerManagementTitle": "Offer Management",
+    "offerTable": {
+      "title": "Title",
+      "author": "Author",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "categoryManagementTitle": "Category Management",
+    "categoryTable": {
+      "id": "ID",
+      "name": "Name",
+      "description": "Description",
+      "actions": "Actions"
+    },
+    "buttons": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel",
+      "ok": "OK",
+      "addNewCategory": "Add New Category",
+      "saveChanges": "Save Changes",
+      "activate": "Activate",
+      "deactivate": "Deactivate"
+    },
+    "modals": {
+      "editUserTitle": "Edit User: {{email}}",
+      "deleteUserTitle": "Confirm Deletion",
+      "deleteUserText": "Are you sure you want to delete <strong>{{email}}</strong>?",
+      "deleteOfferTitle": "Confirm Deletion",
+      "deleteOfferText": "Are you sure you want to delete the offer <strong>{{title}}</strong>?",
+      "deleteCategoryTitle": "Confirm Deletion",
+      "deleteCategoryText": "Are you sure you want to delete the category <strong>{{name}}</strong>? This might affect existing offers.",
+      "permissionDeniedTitle": "Permission Denied",
+      "addCategoryTitle": "Add Category",
+      "editCategoryTitle": "Edit Category"
+    }
+  }
+}

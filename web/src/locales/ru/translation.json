@@ -1,0 +1,110 @@
+{
+  "nav": {
+    "home": "Главная",
+    "offers": "Объявления",
+    "adminPanel": "Админ-панель",
+    "login": "Войти",
+    "register": "Регистрация",
+    "logout": "Выйти"
+  },
+  "homePage": {
+    "welcome": "Добро пожаловать в MasterDom",
+    "loggedIn": "Вы вошли в систему. Ваш ID пользователя: {{userId}}",
+    "loggedOut": "Пожалуйста, войдите или зарегистрируйтесь, чтобы использовать сервис."
+  },
+  "loginPage": {
+    "title": "Вход",
+    "emailPlaceholder": "Электронная почта",
+    "passwordPlaceholder": "Пароль",
+    "loginButton": "Войти",
+    "loggingIn": "Выполняется вход...",
+    "success": "Вход выполнен успешно! Перенаправление...",
+    "errorPrefix": "Ошибка"
+  },
+  "registerPage": {
+    "title": "Регистрация",
+    "emailPlaceholder": "Электронная почта",
+    "passwordPlaceholder": "Пароль",
+    "firstNamePlaceholder": "Имя",
+    "lastNamePlaceholder": "Фамилия (необязательно)",
+    "phonePlaceholder": "Номер телефона (необязательно)",
+    "registerButton": "Зарегистрироваться",
+    "registering": "Регистрация...",
+    "success": "Регистрация прошла успешно!",
+    "errorPrefix": "Ошибка"
+  },
+  "offersPage": {
+    "mastersOffers": "Предложения мастеров",
+    "clientsRequests": "Запросы клиентов",
+    "createOfferTitle": "Создать новое объявление",
+    "offerTypeLabel": "Тип объявления:",
+    "offerTypeMaster": "Предложение услуг (я - мастер)",
+    "offerTypeClient": "Запрос на услугу (мне нужен мастер)",
+    "categoryLabel": "Категория",
+    "selectCategory": "-- Выберите категорию --",
+    "titleLabel": "Заголовок",
+    "descriptionLabel": "Описание",
+    "createOfferButton": "Создать объявление",
+    "submitting": "Отправка...",
+    "loading": "Загрузка...",
+    "noOffers": "Объявлений в этой категории не найдено.",
+    "postedBy": "От:",
+    "postedDate": "Опубликовано:"
+  },
+  "adminPage": {
+    "title": "Панель администратора",
+    "dashboardTitle": "Дашборд",
+    "stats": {
+      "totalUsers": "Всего пользователей",
+      "totalOffers": "Всего объявлений",
+      "totalJobs": "Всего работ",
+      "serviceRequests": "Запросов на услуги",
+      "serviceOffers": "Предложений услуг"
+    },
+    "userManagementTitle": "Управление пользователями",
+    "userTable": {
+      "email": "Email",
+      "name": "Имя",
+      "role": "Роль",
+      "admin": "Админ",
+      "actions": "Действия"
+    },
+    "offerManagementTitle": "Управление объявлениями",
+    "offerTable": {
+      "title": "Заголовок",
+      "author": "Автор",
+      "status": "Статус",
+      "actions": "Действия"
+    },
+    "categoryManagementTitle": "Управление категориями",
+    "categoryTable": {
+      "id": "ID",
+      "name": "Название",
+      "description": "Описание",
+      "actions": "Действия"
+    },
+    "buttons": {
+      "edit": "Редакт.",
+      "delete": "Удалить",
+      "save": "Сохранить",
+      "cancel": "Отмена",
+      "ok": "OK",
+      "addNewCategory": "Добавить категорию",
+      "saveChanges": "Сохранить изменения",
+      "activate": "Активировать",
+      "deactivate": "Деактивировать"
+    },
+    "modals": {
+      "editUserTitle": "Редактировать пользователя: {{email}}",
+      "deleteUserTitle": "Подтвердите удаление",
+      "deleteUserText": "Вы уверены, что хотите удалить <strong>{{email}}</strong>?",
+      "deleteOfferTitle": "Подтвердите удаление",
+      "deleteOfferText": "Вы уверены, что хотите удалить объявление <strong>{{title}}</strong>?",
+      "deleteCategoryTitle": "Подтвердите удаление",
+      "deleteCategoryText": "Вы уверены, что хотите удалить категорию <strong>{{name}}</strong>? Это может повлиять на существующие объявления.",
+      "permissionDeniedTitle": "Доступ запрещен",
+      "addCategoryTitle": "Добавить категорию",
+      "editCategoryTitle": "Редактировать категорию"
+    }
+  }
+}

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './RegisterPage.css'; // Создадим этот файл для стилей
+import { useTranslation } from 'react-i18next';
+import './RegisterPage.css';
 
 export function RegisterPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -29,7 +31,7 @@ export function RegisterPage() {
           email,
           password,
           firstName,
-          lastName: lastName || null, // Отправляем null, если пусто
+          lastName: lastName || null,
           phoneNumber: phoneNumber || null,
         }),
       });
@@ -40,15 +42,13 @@ export function RegisterPage() {
         throw new Error(data.details || data.error || 'Registration failed');
       }
 
-      setMessage(data.message || 'Registration successful!');
-      // Очищаем форму
+      setMessage(data.message || t('registerPage.success'));
       setEmail('');
       setPassword('');
       setFirstName('');
       setLastName('');
       setPhoneNumber('');
 
-      // Можно перенаправить пользователя на страницу входа
       setTimeout(() => {
         navigate('/login');
       }, 2000);
@@ -66,46 +66,46 @@ export function RegisterPage() {
 
   return (
     <div className="page-container">
-      <h2>Register</h2>
+      <h2>{t('registerPage.title')}</h2>
       <form onSubmit={handleSubmit} className="auth-form">
         {error && <p className="form-message error-message">{error}</p>}
         {message && <p className="form-message success-message">{message}</p>}
 
         <input
           type="email"
-          placeholder="Email"
+          placeholder={t('registerPage.emailPlaceholder')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
         <input
           type="password"
-          placeholder="Password"
+          placeholder={t('registerPage.passwordPlaceholder')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
         <input
           type="text"
-          placeholder="First Name"
+          placeholder={t('registerPage.firstNamePlaceholder')}
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
           required
         />
         <input
           type="text"
-          placeholder="Last Name (optional)"
+          placeholder={t('registerPage.lastNamePlaceholder')}
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
         />
         <input
           type="tel"
-          placeholder="Phone Number (optional)"
+          placeholder={t('registerPage.phonePlaceholder')}
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
         />
         <button type="submit" disabled={loading}>
-          {loading ? 'Registering...' : 'Register'}
+          {loading ? t('registerPage.registering') : t('registerPage.registerButton')}
         </button>
       </form>
     </div>

@@ -1,49 +1,34 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { RegisterPage } from './pages/RegisterPage';
 import { LoginPage } from './pages/LoginPage';
 import { OffersPage } from './pages/OffersPage';
-import { AdminPage } from './pages/AdminPage'; // Добавлено
+import { AdminPage } from './pages/AdminPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './App.css';
 
-// Компонент навигации, который использует контекст
 function Navigation() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
 
   return (
     <nav className="main-nav">
       <Link to="/">MasterDom</Link>
       <ul>
-        <li>
-          <Link to="/">Home</Link>
-        </li>
-        <li>
-          <Link to="/offers">Offers</Link>
-        </li>
+        <li><Link to="/">{t('nav.home')}</Link></li>
+        <li><Link to="/offers">{t('nav.offers')}</Link></li>
         {user && user.isAdmin && (
-          <li>
-            <Link to="/admin">Admin Panel</Link>
-          </li>
+          <li><Link to="/admin">{t('nav.adminPanel')}</Link></li>
         )}
         {user ? (
-          // Если пользователь вошел
           <>
-            <li>
-              <span>User ID: {user.userId}</span>
-            </li>
-            <li>
-              <button onClick={logout} style={{background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1rem'}}>Logout</button>
-            </li>
+            <li><span>User ID: {user.userId}</span></li>
+            <li><button onClick={logout} style={{background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1rem'}}>{t('nav.logout')}</button></li>
           </>
         ) : (
-          // Если пользователь не вошел
           <>
-            <li>
-              <Link to="/login">Login</Link>
-            </li>
-            <li>
-              <Link to="/register">Register</Link>
-            </li>
+            <li><Link to="/login">{t('nav.login')}</Link></li>
+            <li><Link to="/register">{t('nav.register')}</Link></li>
           </>
         )}
       </ul>
@@ -53,13 +38,14 @@ function Navigation() {
 
 function HomePage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   return (
     <div className="page-container">
-      <h1>Welcome to MasterDom</h1>
+      <h1>{t('homePage.welcome')}</h1>
       {user ? (
-        <p>You are logged in. Your user ID is: {user.userId}</p>
+        <p>{t('homePage.loggedIn', { userId: user.userId })}</p>
       ) : (
-        <p>Please login or register to use the service.</p>
+        <p>{t('homePage.loggedOut')}</p>
       )}
     </div>
   );
@@ -77,7 +63,7 @@ function App() {
               <Route path="/offers" element={<OffersPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/admin" element={<AdminPage />} /> {/* Добавлено */}
+              <Route path="/admin" element={<AdminPage />} />
             </Routes>
           </main>
         </div>
