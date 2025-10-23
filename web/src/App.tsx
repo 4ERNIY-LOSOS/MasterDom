@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { RegisterPage } from './pages/RegisterPage'; // Изменено
-import { RegisterClientPage } from './pages/RegisterClient'; // Добавлено
-import { RegisterMasterPage } from './pages/RegisterMaster'; // Добавлено
+import { RegisterPage } from './pages/RegisterPage';
 import { LoginPage } from './pages/LoginPage';
+import { OffersPage } from './pages/OffersPage';
+import { AdminPage } from './pages/AdminPage'; // Добавлено
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -17,11 +17,19 @@ function Navigation() {
         <li>
           <Link to="/">Home</Link>
         </li>
+        <li>
+          <Link to="/offers">Offers</Link>
+        </li>
+        {user && user.isAdmin && (
+          <li>
+            <Link to="/admin">Admin Panel</Link>
+          </li>
+        )}
         {user ? (
           // Если пользователь вошел
           <>
             <li>
-              <span>Role: {user.role}</span>
+              <span>User ID: {user.userId}</span>
             </li>
             <li>
               <button onClick={logout} style={{background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1rem'}}>Logout</button>
@@ -66,10 +74,10 @@ function App() {
           <main>
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/offers" element={<OffersPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              <Route path="/register/client" element={<RegisterClientPage />} />
-              <Route path="/register/master" element={<RegisterMasterPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/admin" element={<AdminPage />} /> {/* Добавлено */}
             </Routes>
           </main>
         </div>

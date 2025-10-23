@@ -29,7 +29,7 @@ export function LoginPage() {
       }
 
       // Используем функцию login из контекста
-      login(data.token);
+      login(data.token, data.isAdmin);
 
       setMessage('Login successful! Redirecting...');
 
