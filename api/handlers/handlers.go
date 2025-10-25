@@ -66,6 +66,7 @@ func (h *Handler) Login(c *gin.Context) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &models.Claims{
 		UserID:  user.ID,
+		Email:   user.Email,
 		IsAdmin: isAdmin,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
@@ -73,7 +74,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(utils.JwtKey)
+	tokenString, err := token.SignedString(utils.GetJWTKey())
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create token"})
 		return
@@ -325,4 +326,43 @@ func (h *Handler) GetAdminStats(c *gin.Context) {
 		return
 	}
 	c.JSON(200, stats)
+}
+
+func (h *Handler) GetMyProfile(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	user, err := h.Store.GetUserDetailByID(c.Request.Context(), userID.(string))
+	if err != nil {
+		c.JSON(404, gin.H{"error": "User not found", "details": err.Error()})
+		return
+	}
+	c.JSON(200, user)
+}
+
+func (h *Handler) UpdateMyProfile(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var payload models.UpdateUserPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid input", "details": err.Error()})
+		return
+	}
+
+	// Prevent user from making themselves an admin
+	payload.IsAdmin = nil
+
+	err := h.Store.UpdateUserDetail(c.Request.Context(), userID.(string), payload)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to update profile", "details": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"message": "Profile updated successfully"})
 }

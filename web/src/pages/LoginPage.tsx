@@ -30,7 +30,7 @@ export function LoginPage() {
         throw new Error(data.error || 'Failed to login');
       }
 
-      login(data.token, data.isAdmin);
+      login(data.token);
 
       setMessage(t('loginPage.success'));
 

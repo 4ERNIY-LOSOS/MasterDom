@@ -4,6 +4,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { LoginPage } from './pages/LoginPage';
 import { OffersPage } from './pages/OffersPage';
 import { AdminPage } from './pages/AdminPage';
+import { ProfilePage } from './pages/ProfilePage'; // Импортируем новую страницу
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -17,12 +18,14 @@ function Navigation() {
       <ul>
         <li><Link to="/">{t('nav.home')}</Link></li>
         <li><Link to="/offers">{t('nav.offers')}</Link></li>
+        {user && (
+          <li><Link to="/profile">{t('nav.profile')}</Link></li> // Используем перевод
+        )}
         {user && user.isAdmin && (
           <li><Link to="/admin">{t('nav.adminPanel')}</Link></li>
         )}
         {user ? (
           <>
-            <li><span>User ID: {user.userId}</span></li>
             <li><button onClick={logout} style={{background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1rem'}}>{t('nav.logout')}</button></li>
           </>
         ) : (
@@ -43,7 +46,7 @@ function HomePage() {
     <div className="page-container">
       <h1>{t('homePage.welcome')}</h1>
       {user ? (
-        <p>{t('homePage.loggedIn', { userId: user.userId })}</p>
+        <p>{t('homePage.loggedIn', { email: user.email })}</p> // Показываем email
       ) : (
         <p>{t('homePage.loggedOut')}</p>
       )}
@@ -64,6 +67,7 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/admin" element={<AdminPage />} />
+              <Route path="/profile" element={<ProfilePage />} /> {/* Добавляем маршрут */}
             </Routes>
           </main>
         </div>

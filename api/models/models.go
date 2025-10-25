@@ -104,6 +104,7 @@ type ServiceCategory struct {
 
 type Claims struct {
 	UserID  string `json:"userId"`
+	Email   string `json:"email"`
 	IsAdmin bool   `json:"isAdmin"`
 	jwt.RegisteredClaims
 }

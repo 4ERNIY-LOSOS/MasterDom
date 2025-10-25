@@ -2,6 +2,7 @@
   "nav": {
     "home": "Home",
     "offers": "Offers",
+    "profile": "Profile",
     "adminPanel": "Admin Panel",
     "login": "Login",
     "register": "Register",
@@ -9,7 +10,7 @@
   },
   "homePage": {
     "welcome": "Welcome to MasterDom",
-    "loggedIn": "You are logged in. Your user ID is: {{userId}}",
+    "loggedIn": "You are logged in as: {{email}}",
     "loggedOut": "Please login or register to use the service."
   },
   "loginPage": {
@@ -50,6 +51,18 @@
     "noOffers": "No offers found for this category.",
     "postedBy": "From:",
     "postedDate": "Posted:"
+  },
+  "profilePage": {
+    "title": "My Profile",
+    "loading": "Loading profile...",
+    "firstNameLabel": "First Name",
+    "lastNameLabel": "Last Name",
+    "phoneLabel": "Phone Number",
+    "bioLabel": "Bio / About Me",
+    "bioPlaceholder": "Tell us about yourself, your skills, and services you offer.",
+    "experienceLabel": "Years of Experience",
+    "saveButton": "Save Changes",
+    "successMessage": "Profile updated successfully!"
   },
   "adminPage": {
     "title": "Admin Panel",

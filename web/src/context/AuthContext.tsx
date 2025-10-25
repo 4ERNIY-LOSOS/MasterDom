@@ -6,6 +6,7 @@ import { jwtDecode } from 'jwt-decode';
 // Описываем, какую информацию хранит токен
 interface User {
   userId: string;
+  email: string;
   isAdmin: boolean;
   exp: number;
 }
@@ -46,14 +47,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
-  const login = (newToken: string, newIsAdmin: boolean) => {
+  const login = (newToken: string) => {
     localStorage.setItem('authToken', newToken);
-    // При декодировании токена, isAdmin уже будет в нем
     setToken(newToken);
-    // Обновляем user сразу после логина, чтобы isAdmin был доступен
     try {
       const decoded = jwtDecode<User>(newToken);
-      setUser({ ...decoded, isAdmin: newIsAdmin }); // Используем newIsAdmin из ответа API
+      setUser(decoded);
     } catch (error) {
       console.error("Invalid token after login", error);
       logout();

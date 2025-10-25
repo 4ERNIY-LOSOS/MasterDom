@@ -58,6 +58,8 @@ func main() {
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			protected.GET("/profile", appHandlers.GetMyProfile)
+			protected.PATCH("/profile", appHandlers.UpdateMyProfile)
 			protected.POST("/offers", appHandlers.CreateOffer)
 
 			admin := protected.Group("/admin")
