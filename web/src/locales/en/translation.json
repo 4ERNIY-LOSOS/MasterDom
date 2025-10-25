@@ -35,11 +35,11 @@
   },
   "offersPage": {
     "mastersOffers": "Masters' Offers",
-    "clientsRequests": "Clients' Requests",
+    "clientsRequests": "Service Requests",
     "createOfferTitle": "Create New Offer",
     "offerTypeLabel": "Offer Type:",
     "offerTypeMaster": "Service Offer (I am a Master)",
-    "offerTypeClient": "Service Request (I need a Master)",
+    "offerTypeClient": "Service Request (I need a master)",
     "categoryLabel": "Category",
     "selectCategory": "-- Select a Category --",
     "titleLabel": "Title",

@@ -48,7 +48,7 @@ func (s *PostgresStore) CreateUser(ctx context.Context, payload models.RegisterP
 
 	var userID string
 	err = tx.QueryRow(ctx,
-		"INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'client') RETURNING id",
+		"INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'user') RETURNING id",
 		payload.Email, hashedPassword).Scan(&userID)
 	if err != nil {
 		return "", fmt.Errorf("failed to create user: %w", err)
@@ -180,7 +180,7 @@ func (s *PostgresStore) UpdateUserDetail(ctx context.Context, userID string, pay
 
 	// Handle role update in the 'users' table
 	if payload.IsAdmin != nil {
-		newRole := "client" // Default non-admin role
+		newRole := "user" // Default non-admin role
 		if *payload.IsAdmin {
 			newRole = "admin"
 		}

@@ -35,11 +35,11 @@
   },
   "offersPage": {
     "mastersOffers": "Предложения мастеров",
-    "clientsRequests": "Запросы клиентов",
+    "clientsRequests": "Заказы на услуги",
     "createOfferTitle": "Создать новое объявление",
     "offerTypeLabel": "Тип объявления:",
     "offerTypeMaster": "Предложение услуг (я - мастер)",
-    "offerTypeClient": "Запрос на услугу (мне нужен мастер)",
+    "offerTypeClient": "Заказ на услугу (я ищу мастера)",
     "categoryLabel": "Категория",
     "selectCategory": "-- Выберите категорию --",
     "titleLabel": "Заголовок",
