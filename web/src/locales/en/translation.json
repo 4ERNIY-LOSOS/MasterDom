@@ -11,7 +11,8 @@
   "homePage": {
     "welcome": "Welcome to MasterDom",
     "loggedIn": "You are logged in as: {{email}}",
-    "loggedOut": "Please login or register to use the service."
+    "loggedOut": "Please login or register to use the service.",
+    "latestOffers": "Latest Offers"
   },
   "loginPage": {
     "title": "Login",
@@ -50,7 +51,10 @@
     "loading": "Loading...",
     "noOffers": "No offers found for this category.",
     "postedBy": "From:",
-    "postedDate": "Posted:"
+    "postedDate": "Posted:",
+    "searchPlaceholder": "Search by keyword...",
+    "allCategories": "All Categories",
+    "applyFiltersButton": "Apply Filters"
   },
   "profilePage": {
     "title": "My Profile",

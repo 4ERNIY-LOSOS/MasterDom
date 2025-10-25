@@ -109,12 +109,10 @@ func (h *Handler) CreateOffer(c *gin.Context) {
 
 func (h *Handler) GetOffers(c *gin.Context) {
 	offerTypeFilter := c.Query("type")
-	if offerTypeFilter == "" {
-		c.JSON(400, gin.H{"error": "'type' query parameter is required"})
-		return
-	}
+	search := c.Query("search")
+	categoryID := c.Query("category")
 
-	offers, err := h.Store.GetOffers(c.Request.Context(), offerTypeFilter)
+	offers, err := h.Store.GetOffers(c.Request.Context(), offerTypeFilter, search, categoryID)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to fetch offers", "details": err.Error()})
 		return
@@ -366,3 +364,4 @@ func (h *Handler) UpdateMyProfile(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"message": "Profile updated successfully"})
 }
+

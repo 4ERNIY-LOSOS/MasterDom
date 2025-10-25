@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { OfferList } from '../components/OfferList';
 
 interface Offer {
   id: string;
@@ -110,6 +111,44 @@ function CreateOfferForm({ onOfferCreated }: { onOfferCreated: (offerType: Offer
   );
 }
 
+function FilterBar({ onFilterChange }: { onFilterChange: (filters: { search: string; category: string }) => void }) {
+  const { t } = useTranslation();
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState<ServiceCategory[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const response = await fetch('/api/categories');
+      const data = await response.json();
+      setCategories(data);
+    };
+    fetchCategories();
+  }, []);
+
+  const handleFilter = () => {
+    onFilterChange({ search, category });
+  };
+
+  return (
+    <div className="filter-bar">
+      <input
+        type="text"
+        placeholder={t('offersPage.searchPlaceholder')}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <select value={category} onChange={(e) => setCategory(e.target.value)}>
+        <option value="">{t('offersPage.allCategories')}</option>
+        {categories.map(cat => (
+          <option key={cat.id} value={cat.id}>{cat.name}</option>
+        ))}
+      </select>
+      <button onClick={handleFilter}>{t('offersPage.applyFiltersButton')}</button>
+    </div>
+  );
+}
+
 export function OffersPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -117,13 +156,19 @@ export function OffersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewType, setViewType] = useState<OfferType>('service_offer');
+  const [filters, setFilters] = useState({ search: '', category: '' });
 
   useEffect(() => {
     const fetchOffers = async () => {
       setLoading(true);
       setError(null);
+      const params = new URLSearchParams({
+        type: viewType,
+        search: filters.search,
+        category: filters.category,
+      });
       try {
-        const response = await fetch(`/api/offers?type=${viewType}`);
+        const response = await fetch(`/api/offers?${params.toString()}`);
         if (!response.ok) throw new Error(`Network response was not ok for type: ${viewType}`);
         const data: Offer[] = await response.json();
         setOffers(data);
@@ -135,10 +180,11 @@ export function OffersPage() {
       }
     };
     fetchOffers();
-  }, [viewType]);
+  }, [viewType, filters]);
 
   const handleOfferCreated = (createdType: OfferType) => {
     setViewType(createdType);
+    setFilters({ search: '', category: '' }); // Reset filters
   };
 
   return (
@@ -148,27 +194,12 @@ export function OffersPage() {
         <button onClick={() => setViewType('request_for_service')} className={viewType === 'request_for_service' ? 'active' : ''}>{t('offersPage.clientsRequests')}</button>
       </div>
       <h1>{viewType === 'service_offer' ? t('offersPage.mastersOffers') : t('offersPage.clientsRequests')}</h1>
+      
+      <FilterBar onFilterChange={setFilters} />
+
       {user && <CreateOfferForm onOfferCreated={handleOfferCreated} />}
-      {loading && <p>{t('offersPage.loading')}</p>}
-      {error && <p className="error-message">{t('loginPage.errorPrefix')}: {error}</p>}
-      {!loading && !error && (
-        <div className="offers-list">
-          {offers.length > 0 ? (
-            offers.map(offer => (
-              <div key={offer.id} className="offer-card">
-                <h2>{offer.title}</h2>
-                <p>{offer.description}</p>
-                <footer>
-                  <span>{t('offersPage.postedBy')} {offer.authorFirstName}</span>
-                  <span>{t('offersPage.postedDate')} {new Date(offer.createdAt).toLocaleDateString()}</span>
-                </footer>
-              </div>
-            ))
-          ) : (
-            <p>{t('offersPage.noOffers')}</p>
-          )}
-        </div>
-      )}
+      
+      <OfferList offers={offers} loading={loading} error={error} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -14,7 +15,7 @@ type Store interface {
 	CreateUser(ctx context.Context, payload models.RegisterPayload, hashedPassword string) (string, error)
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	CreateOffer(ctx context.Context, userID string, payload models.CreateOfferPayload) (string, error)
-	GetOffers(ctx context.Context, offerTypeFilter string) ([]models.OfferResponse, error)
+	GetOffers(ctx context.Context, offerTypeFilter string, search string, categoryID string) ([]models.OfferResponse, error)
 	GetAllUsers(ctx context.Context) ([]models.UserDetail, error)
 	GetUserDetailByID(ctx context.Context, userID string) (*models.UserDetail, error)
 	UpdateUserDetail(ctx context.Context, userID string, payload models.UpdateUserPayload) error
@@ -75,17 +76,44 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 	return &user, nil
 }
 
-func (s *PostgresStore) GetOffers(ctx context.Context, offerTypeFilter string) ([]models.OfferResponse, error) {
-	rows, err := s.dbpool.Query(ctx,
-		`SELECT o.id, o.title, o.description, o.offer_type, o.created_at, 
-		        u.id as author_id, 
-		        up.first_name as author_first_name
-		 FROM offers o
-		 JOIN users u ON o.author_id = u.id
-		 LEFT JOIN user_details up ON u.id = up.user_id
-		 WHERE o.is_active = true AND o.offer_type = $1
-		 ORDER BY o.created_at DESC`,
-		offerTypeFilter)
+func (s *PostgresStore) GetOffers(ctx context.Context, offerTypeFilter string, search string, categoryID string) ([]models.OfferResponse, error) {
+	baseQuery := `SELECT o.id, o.title, o.description, o.offer_type, o.created_at, 
+				   u.id as author_id, 
+				   up.first_name as author_first_name
+			FROM offers o
+			JOIN users u ON o.author_id = u.id
+			LEFT JOIN user_details up ON u.id = up.user_id
+			WHERE o.is_active = true`
+
+	args := []interface{}{}
+	whereClauses := []string{}
+	argCount := 1
+
+	if offerTypeFilter != "" {
+		whereClauses = append(whereClauses, fmt.Sprintf("o.offer_type = $%d", argCount))
+		args = append(args, offerTypeFilter)
+		argCount++
+	}
+
+	if search != "" {
+		whereClauses = append(whereClauses, fmt.Sprintf("(LOWER(o.title) LIKE $%d OR LOWER(o.description) LIKE $%d)", argCount, argCount))
+		args = append(args, "%"+strings.ToLower(search)+"%")
+		argCount++
+	}
+
+	if categoryID != "" {
+		whereClauses = append(whereClauses, fmt.Sprintf("o.category_id = $%d", argCount))
+		args = append(args, categoryID)
+		argCount++
+	}
+
+	if len(whereClauses) > 0 {
+		baseQuery += " AND " + strings.Join(whereClauses, " AND ")
+	}
+
+	baseQuery += " ORDER BY o.created_at DESC"
+
+	rows, err := s.dbpool.Query(ctx, baseQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch offers: %w", err)
 	}

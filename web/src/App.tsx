@@ -4,7 +4,8 @@ import { RegisterPage } from './pages/RegisterPage';
 import { LoginPage } from './pages/LoginPage';
 import { OffersPage } from './pages/OffersPage';
 import { AdminPage } from './pages/AdminPage';
-import { ProfilePage } from './pages/ProfilePage'; // Импортируем новую страницу
+import { ProfilePage } from './pages/ProfilePage';
+import { HomePage } from './pages/HomePage'; // Импортируем новую страницу
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './App.css';
 
@@ -19,7 +20,7 @@ function Navigation() {
         <li><Link to="/">{t('nav.home')}</Link></li>
         <li><Link to="/offers">{t('nav.offers')}</Link></li>
         {user && (
-          <li><Link to="/profile">{t('nav.profile')}</Link></li> // Используем перевод
+          <li><Link to="/profile">{t('nav.profile')}</Link></li>
         )}
         {user && user.isAdmin && (
           <li><Link to="/admin">{t('nav.adminPanel')}</Link></li>
@@ -39,21 +40,6 @@ function Navigation() {
   );
 }
 
-function HomePage() {
-  const { user } = useAuth();
-  const { t } = useTranslation();
-  return (
-    <div className="page-container">
-      <h1>{t('homePage.welcome')}</h1>
-      {user ? (
-        <p>{t('homePage.loggedIn', { email: user.email })}</p> // Показываем email
-      ) : (
-        <p>{t('homePage.loggedOut')}</p>
-      )}
-    </div>
-  );
-}
-
 function App() {
   return (
     <AuthProvider>
@@ -67,7 +53,7 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/admin" element={<AdminPage />} />
-              <Route path="/profile" element={<ProfilePage />} /> {/* Добавляем маршрут */}
+              <Route path="/profile" element={<ProfilePage />} />
             </Routes>
           </main>
         </div>
