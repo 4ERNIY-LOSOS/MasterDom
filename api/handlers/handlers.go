@@ -73,7 +73,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(utils.GetJWTKey())
+	tokenString, err := token.SignedString(utils.JwtKey)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create token"})
 		return

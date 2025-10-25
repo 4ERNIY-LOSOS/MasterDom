@@ -3,19 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 
-import { AdminStats } from '../components/admin/AdminStats';
-import { UserTable } from '../components/admin/UserTable';
-import { OfferTable } from '../components/admin/OfferTable';
-import { CategoryTable } from '../components/admin/CategoryTable';
-import { UserEditModal } from '../components/admin/UserEditModal';
-import { ConfirmDeleteModal } from '../components/admin/ConfirmDeleteModal';
-import { CategoryEditModal } from '../components/admin/CategoryEditModal';
-
 // --- Interfaces ---
-interface UserDetail { id: string; email: string; role: string; firstName: string; lastName: string | null; isAdmin: boolean; }
-interface AdminOfferResponse { id: string; title: string; authorFirstName: string; authorEmail: string; isActive: boolean; }
+interface UserDetail { id: string; email: string; role: string; firstName: string; lastName: string | null; phoneNumber: string | null; bio: string | null; yearsOfExperience: number | null; averageRating: number; isAdmin: boolean; createdAt: string; updatedAt: string; }
+interface AdminOfferResponse { id: string; title: string; description: string; offerType: string; isActive: boolean; createdAt: string; updatedAt: string; authorId: string; authorFirstName: string; authorEmail: string; }
 interface ServiceCategory { id: number; name: string; description: string; }
-interface Stats { totalUsers: number; totalOffers: number; totalJobs: number; totalServiceRequests: number; totalServiceOffers: number; }
+interface AdminStats { totalUsers: number; totalOffers: number; totalJobs: number; totalServiceRequests: number; totalServiceOffers: number; }
 
 export function AdminPage() {
   const { t } = useTranslation();
@@ -23,7 +15,7 @@ export function AdminPage() {
   const navigate = useNavigate();
 
   // --- State ---
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<UserDetail[]>([]);
   const [offers, setOffers] = useState<AdminOfferResponse[]>([]);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
@@ -32,8 +24,15 @@ export function AdminPage() {
 
   // Modals State
   const [editingUser, setEditingUser] = useState<UserDetail | null>(null);
-  const [deletingItem, setDeletingItem] = useState<{ type: 'user' | 'offer' | 'category', data: any } | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserDetail | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [offerToDelete, setOfferToDelete] = useState<AdminOfferResponse | null>(null);
+  const [showOfferDeleteConfirm, setShowOfferDeleteConfirm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<ServiceCategory | null>(null);
+  const [showCategoryDeleteConfirm, setShowCategoryDeleteConfirm] = useState(false);
 
   // --- Data Fetching ---
   const fetchData = async () => {
@@ -77,35 +76,51 @@ export function AdminPage() {
     fetchData();
   }, [user, token, navigate]);
 
-  // --- API Handlers ---
+  // --- Handlers ---
   const handleUpdateUser = async (updatedUser: UserDetail) => {
     try {
       const response = await fetch(`/api/admin/users/${updatedUser.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ isAdmin: updatedUser.isAdmin, firstName: updatedUser.firstName, lastName: updatedUser.lastName }),
+        body: JSON.stringify({ isAdmin: updatedUser.isAdmin, firstName: updatedUser.firstName, lastName: updatedUser.lastName, phoneNumber: updatedUser.phoneNumber, bio: updatedUser.bio, yearsOfExperience: updatedUser.yearsOfExperience }),
       });
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Update failed' }));
-        throw new Error(errorData.details || errorData.error);
+        const errorData = await response.json().catch(() => ({ error: 'Update failed with non-JSON response' }));
+        throw new Error(errorData.details || errorData.error || 'Failed to update user');
       }
+
       fetchData();
+      setShowEditModal(false);
       setEditingUser(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
   };
 
-  const handleToggleOfferStatus = async (offer: AdminOfferResponse) => {
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
     try {
-      await fetch(`/api/admin/offers/${offer.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ isActive: !offer.isActive }),
-      });
+      await fetch(`/api/admin/users/${userToDelete.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
+    } finally {
+      setShowDeleteConfirm(false);
+      setUserToDelete(null);
+    }
+  };
+
+  const confirmDeleteOffer = async () => {
+    if (!offerToDelete) return;
+    try {
+      await fetch(`/api/admin/offers/${offerToDelete.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+    } finally {
+      setShowOfferDeleteConfirm(false);
+      setOfferToDelete(null);
     }
   };
 
@@ -120,26 +135,32 @@ export function AdminPage() {
         body: JSON.stringify({ name: category.name, description: category.description }),
       });
       fetchData();
+      setShowCategoryModal(false);
       setEditingCategory(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deletingItem) return;
-    const { type, data } = deletingItem;
+  const handleDeleteCategoryRequest = (category: ServiceCategory) => {
+    setCategoryToDelete(category);
+    setShowCategoryDeleteConfirm(true);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
     try {
-      await fetch(`/api/admin/${type}s/${data.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      await fetch(`/api/admin/categories/${categoryToDelete.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
-      setDeletingItem(null);
+      setShowCategoryDeleteConfirm(false);
+      setCategoryToDelete(null);
     }
   };
-
-  // --- Render ---
+  
+  // --- JSX ---
   if (loading) return <div className="page-container">Loading...</div>;
   if (error) return <div className="page-container">Error: {error}</div>;
 
@@ -147,54 +168,24 @@ export function AdminPage() {
     <div className="page-container">
       <h1>{t('adminPage.title')}</h1>
 
-      <AdminStats stats={stats} />
+      <section><h2>{t('adminPage.dashboardTitle')}</h2>{stats ? <div className="stats-grid"><div className="stat-card"><h3>{t('adminPage.stats.totalUsers')}</h3><p>{stats.totalUsers}</p></div><div className="stat-card"><h3>{t('adminPage.stats.totalOffers')}</h3><p>{stats.totalOffers}</p></div><div className="stat-card"><h3>{t('adminPage.stats.totalJobs')}</h3><p>{stats.totalJobs}</p></div><div className="stat-card"><h3>{t('adminPage.stats.serviceRequests')}</h3><p>{stats.totalServiceRequests}</p></div><div className="stat-card"><h3>{t('adminPage.stats.serviceOffers')}</h3><p>{stats.totalServiceOffers}</p></div></div> : <p>Loading stats...</p>}</section>
 
-      <UserTable
-        users={users}
-        currentUserId={user?.userId}
-        onEdit={setEditingUser}
-        onDelete={(u) => setDeletingItem({ type: 'user', data: u })}
-      />
+      <section><h2>{t('adminPage.userManagementTitle')}</h2>{users.length === 0 ? <p>No users found.</p> : <table><thead><tr><th>{t('adminPage.userTable.email')}</th><th>{t('adminPage.userTable.name')}</th><th>{t('adminPage.userTable.role')}</th><th>{t('adminPage.userTable.admin')}</th><th>{t('adminPage.userTable.actions')}</th></tr></thead><tbody>{users.map((u) => (<tr key={u.id}><td>{u.email}</td><td>{u.firstName} {u.lastName || ''}</td><td>{u.role}</td><td><input type="checkbox" checked={u.isAdmin} disabled /></td><td><button onClick={() => { setEditingUser(u); setShowEditModal(true); }}>{t('adminPage.buttons.edit')}</button><button onClick={() => { setUserToDelete(u); setShowDeleteConfirm(true); }} disabled={user?.userId === u.id} className="delete-button">{t('adminPage.buttons.delete')}</button></td></tr>))}</tbody></table>}</section>
 
-      <OfferTable
-        offers={offers}
-        onToggleStatus={handleToggleOfferStatus}
-        onDelete={(o) => setDeletingItem({ type: 'offer', data: o })}
-      />
+      <section><h2>{t('adminPage.offerManagementTitle')}</h2>{offers.length === 0 ? <p>No offers found.</p> : <table><thead><tr><th>{t('adminPage.offerTable.title')}</th><th>{t('adminPage.offerTable.author')}</th><th>{t('adminPage.offerTable.status')}</th><th>{t('adminPage.offerTable.actions')}</th></tr></thead><tbody>{offers.map((o) => (<tr key={o.id}><td>{o.title}</td><td>{o.authorFirstName} ({o.authorEmail})</td><td><span className={o.isActive ? 'status-active' : 'status-inactive'}>{o.isActive ? 'Active' : 'Inactive'}</span></td><td><button onClick={async () => { await fetch(`/api/admin/offers/${o.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ isActive: !o.isActive }) }); fetchData(); }}>{o.isActive ? t('adminPage.buttons.deactivate') : t('adminPage.buttons.activate')}</button><button onClick={() => { setOfferToDelete(o); setShowOfferDeleteConfirm(true); }} className="delete-button">{t('adminPage.buttons.delete')}</button></td></tr>))}</tbody></table>}</section>
 
-      <CategoryTable
-        categories={categories}
-        onAddNew={() => setEditingCategory({ id: 0, name: '', description: '' })}
-        onEdit={setEditingCategory}
-        onDelete={(c) => setDeletingItem({ type: 'category', data: c })}
-      />
+      <section><h2>{t('adminPage.categoryManagementTitle')}</h2><button onClick={() => { setEditingCategory({ id: 0, name: '', description: '' }); setShowCategoryModal(true); }}>{t('adminPage.buttons.addNewCategory')}</button><table><thead><tr><th>{t('adminPage.categoryTable.id')}</th><th>{t('adminPage.categoryTable.name')}</th><th>{t('adminPage.categoryTable.description')}</th><th>{t('adminPage.categoryTable.actions')}</th></tr></thead><tbody>{categories.map((cat) => (<tr key={cat.id}><td>{cat.id}</td><td>{cat.name}</td><td>{cat.description}</td><td><button onClick={() => { setEditingCategory(cat); setShowCategoryModal(true); }}>{t('adminPage.buttons.edit')}</button><button onClick={() => handleDeleteCategoryRequest(cat)} className="delete-button">{t('adminPage.buttons.delete')}</button></td></tr>))}</tbody></table></section>
 
       {/* Modals */}
-      {editingUser && (
-        <UserEditModal
-          user={editingUser}
-          currentUserId={user?.userId}
-          onSave={handleUpdateUser}
-          onClose={() => setEditingUser(null)}
-        />
-      )}
+      {showEditModal && editingUser && <div className="modal-overlay"><div className="modal-content"><h3>{t('adminPage.modals.editUserTitle', { email: editingUser.email })}</h3><form onSubmit={(e) => { e.preventDefault(); handleUpdateUser(editingUser); }}><div className="form-group"><label>First Name:</label><input type="text" value={editingUser.firstName || ''} onChange={(e) => setEditingUser({ ...editingUser, firstName: e.target.value })} /></div><div className="form-group"><label>Last Name:</label><input type="text" value={editingUser.lastName || ''} onChange={(e) => setEditingUser({ ...editingUser, lastName: e.target.value || null })} /></div><div className="form-group"><label><input type="checkbox" checked={editingUser.isAdmin} onChange={(e) => setEditingUser({ ...editingUser, isAdmin: e.target.checked })} disabled={user?.userId === editingUser.id || editingUser.email === 'admin@gmail.com'} /> Is Admin</label></div><div className="modal-actions"><button type="submit">{t('adminPage.buttons.saveChanges')}</button><button type="button" onClick={() => setShowEditModal(false)}>{t('adminPage.buttons.cancel')}</button></div></form></div></div>}
 
-      {editingCategory && (
-        <CategoryEditModal
-          category={editingCategory}
-          onSave={handleSaveCategory}
-          onClose={() => setEditingCategory(null)}
-        />
-      )}
+      {showDeleteConfirm && userToDelete && <div className="modal-overlay"><div className="modal-content"><h3>{t('adminPage.modals.deleteUserTitle')}</h3><p dangerouslySetInnerHTML={{ __html: t('adminPage.modals.deleteUserText', { email: userToDelete.email }) }} /><div className="modal-actions"><button onClick={confirmDeleteUser} className="delete-button">{t('adminPage.buttons.delete')}</button><button onClick={() => setShowDeleteConfirm(false)}>{t('adminPage.buttons.cancel')}</button></div></div></div>}
 
-      {deletingItem && (
-        <ConfirmDeleteModal
-          title={t(`adminPage.modals.delete${deletingItem.type.charAt(0).toUpperCase() + deletingItem.type.slice(1)}Title`)}
-          message={t(`adminPage.modals.delete${deletingItem.type.charAt(0).toUpperCase() + deletingItem.type.slice(1)}Text`, { name: deletingItem.data.name || deletingItem.data.title || deletingItem.data.email })}
-          onConfirm={confirmDelete}
-          onCancel={() => setDeletingItem(null)}
-        />
-      )}
+      {showOfferDeleteConfirm && offerToDelete && <div className="modal-overlay"><div className="modal-content"><h3>{t('adminPage.modals.deleteOfferTitle')}</h3><p dangerouslySetInnerHTML={{ __html: t('adminPage.modals.deleteOfferText', { title: offerToDelete.title }) }} /><div className="modal-actions"><button onClick={confirmDeleteOffer} className="delete-button">{t('adminPage.buttons.delete')}</button><button onClick={() => setShowOfferDeleteConfirm(false)}>{t('adminPage.buttons.cancel')}</button></div></div></div>}
+
+      {showCategoryDeleteConfirm && categoryToDelete && <div className="modal-overlay"><div className="modal-content"><h3>{t('adminPage.modals.deleteCategoryTitle')}</h3><p dangerouslySetInnerHTML={{ __html: t('adminPage.modals.deleteCategoryText', { name: categoryToDelete.name }) }} /><div className="modal-actions"><button onClick={confirmDeleteCategory} className="delete-button">{t('adminPage.buttons.delete')}</button><button onClick={() => setShowCategoryDeleteConfirm(false)}>{t('adminPage.buttons.cancel')}</button></div></div></div>}
+      
+      {showCategoryModal && editingCategory && <div className="modal-overlay"><div className="modal-content"><h3>{editingCategory.id ? t('adminPage.modals.editCategoryTitle') : t('adminPage.modals.addCategoryTitle')}</h3><form onSubmit={(e) => { e.preventDefault(); handleSaveCategory(editingCategory); }}><div className="form-group"><label>{t('adminPage.categoryTable.name')}:</label><input type="text" value={editingCategory.name} onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })} required /></div><div className="form-group"><label>{t('adminPage.categoryTable.description')}:</label><textarea value={editingCategory.description} onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })} /></div><div className="modal-actions"><button type="submit">{t('adminPage.buttons.save')}</button><button type="button" onClick={() => setShowCategoryModal(false)}>{t('adminPage.buttons.cancel')}</button></div></form></div></div>}
     </div>
   );
 }

@@ -4,17 +4,17 @@ import type { ReactNode } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
 // Описываем, какую информацию хранит токен
-interface DecodedToken {
+interface User {
   userId: string;
-  role: string;
+  isAdmin: boolean;
   exp: number;
 }
 
 // Описываем, что будет храниться в нашем контексте
 interface AuthContextType {
   token: string | null;
-  user: DecodedToken | null;
-  login: (token: string) => void;
+  user: User | null;
+  login: (token: string, isAdmin: boolean) => void;
   logout: () => void;
 }
 
@@ -24,12 +24,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Создаем провайдер - компонент, который будет "обнимать" наше приложение
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'));
-  const [user, setUser] = useState<DecodedToken | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     if (token) {
       try {
-        const decoded = jwtDecode<DecodedToken>(token);
+        const decoded = jwtDecode<User>(token);
         // Проверяем, не истек ли срок действия токена
         if (decoded.exp * 1000 > Date.now()) {
           setUser(decoded);
@@ -46,14 +46,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
-  const login = (newToken: string) => {
+  const login = (newToken: string, newIsAdmin: boolean) => {
     localStorage.setItem('authToken', newToken);
+    // При декодировании токена, isAdmin уже будет в нем
     setToken(newToken);
+    // Обновляем user сразу после логина, чтобы isAdmin был доступен
+    try {
+      const decoded = jwtDecode<User>(newToken);
+      setUser({ ...decoded, isAdmin: newIsAdmin }); // Используем newIsAdmin из ответа API
+    } catch (error) {
+      console.error("Invalid token after login", error);
+      logout();
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('authToken');
     setToken(null);
+    setUser(null);
   };
 
   const value = { token, user, login, logout };
