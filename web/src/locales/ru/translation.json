@@ -1,12 +1,18 @@
 {
   "nav": {
     "home": "Главная",
-    "offers": "Объявления",
     "profile": "Профиль",
     "adminPanel": "Админ-панель",
-    "login": "Войти",
-    "register": "Регистрация",
+    "auth": "Вход / Регистрация",
     "logout": "Выйти"
+  },
+  "authPage": {
+    "title": "Авторизация",
+    "description": "Пожалуйста, войдите в систему или зарегистрируйте новый аккаунт.",
+    "loginButton": "Вход",
+    "registerButton": "Регистрация",
+    "toggleToRegister": "Нет аккаунта? Зарегистрироваться",
+    "toggleToLogin": "Уже есть аккаунт? Войти"
   },
   "homePage": {
     "welcome": "Добро пожаловать в MasterDom",
@@ -32,8 +38,7 @@
     "phonePlaceholder": "Номер телефона (необязательно)",
     "registerButton": "Зарегистрироваться",
     "registering": "Регистрация...",
-    "success": "Регистрация прошла успешно!",
-    "errorPrefix": "Ошибка"
+    "success": "Регистрация прошла успешно!"
   },
   "offersPage": {
     "mastersOffers": "Предложения мастеров",

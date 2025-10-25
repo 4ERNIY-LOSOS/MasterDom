@@ -1,12 +1,18 @@
 {
   "nav": {
     "home": "Home",
-    "offers": "Offers",
     "profile": "Profile",
     "adminPanel": "Admin Panel",
-    "login": "Login",
-    "register": "Register",
+    "auth": "Login / Register",
     "logout": "Logout"
+  },
+  "authPage": {
+    "title": "Authentication",
+    "description": "Please log in to continue or register a new account.",
+    "loginButton": "Login",
+    "registerButton": "Register",
+    "toggleToRegister": "Don't have an account? Register",
+    "toggleToLogin": "Already have an account? Login"
   },
   "homePage": {
     "welcome": "Welcome to MasterDom",

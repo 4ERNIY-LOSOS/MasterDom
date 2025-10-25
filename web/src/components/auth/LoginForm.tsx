@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
-export function LoginPage() {
+export function LoginForm() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,26 +45,23 @@ export function LoginPage() {
   };
 
   return (
-    <div className="form-container">
-      <h2>{t('loginPage.title')}</h2>
-      <form onSubmit={handleSubmit} className="auth-form">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder={t('loginPage.emailPlaceholder')}
-          required
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder={t('loginPage.passwordPlaceholder')}
-          required
-        />
-        <button type="submit">{t('loginPage.loginButton')}</button>
-      </form>
+    <form onSubmit={handleSubmit} className="auth-form">
       {message && <p className="form-message">{message}</p>}
-    </div>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder={t('loginPage.emailPlaceholder')}
+        required
+      />
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder={t('loginPage.passwordPlaceholder')}
+        required
+      />
+      <button type="submit">{t('loginPage.loginButton')}</button>
+    </form>
   );
 }
