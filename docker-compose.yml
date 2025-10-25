@@ -38,6 +38,8 @@ services:
     build:
       context: ./api
     container_name: masterdom_api
+    environment:
+      - JWT_SECRET=my_super_secret_key_for_a_professional_project
     ports:
       - "8080:8080"
     # API зависит от того, чтобы база данных была готова к работе.
