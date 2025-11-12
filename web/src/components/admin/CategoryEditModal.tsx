@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from '@mui/material';
 
 interface ServiceCategory {
   id: number;
@@ -8,12 +9,13 @@ interface ServiceCategory {
 }
 
 interface CategoryEditModalProps {
+  open: boolean;
   category: ServiceCategory | null;
   onSave: (category: ServiceCategory) => void;
   onClose: () => void;
 }
 
-export function CategoryEditModal({ category, onSave, onClose }: CategoryEditModalProps) {
+export function CategoryEditModal({ open, category, onSave, onClose }: CategoryEditModalProps) {
   const { t } = useTranslation();
   const [editedCategory, setEditedCategory] = useState<ServiceCategory | null>(category);
 
@@ -33,32 +35,40 @@ export function CategoryEditModal({ category, onSave, onClose }: CategoryEditMod
   const isNew = !editedCategory.id;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3>{isNew ? t('adminPage.modals.addCategoryTitle') : t('adminPage.modals.editCategoryTitle')}</h3>
-        <form onSubmit={handleSave}>
-          <div className="form-group">
-            <label>{t('adminPage.categoryTable.name')}:</label>
-            <input
-              type="text"
-              value={editedCategory.name}
-              onChange={(e) => setEditedCategory({ ...editedCategory, name: e.target.value })}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>{t('adminPage.categoryTable.description')}:</label>
-            <textarea
-              value={editedCategory.description}
-              onChange={(e) => setEditedCategory({ ...editedCategory, description: e.target.value })}
-            />
-          </div>
-          <div className="modal-actions">
-            <button type="submit">{t('adminPage.buttons.save')}</button>
-            <button type="button" onClick={onClose}>{t('adminPage.buttons.cancel')}</button>
-          </div>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>{isNew ? t('adminPage.modals.addCategoryTitle') : t('adminPage.modals.editCategoryTitle')}</DialogTitle>
+      <DialogContent>
+        <form id="category-edit-form" onSubmit={handleSave}>
+          <TextField
+            autoFocus
+            margin="dense"
+            label={t('adminPage.categoryTable.name')}
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={editedCategory.name}
+            onChange={(e) => setEditedCategory({ ...editedCategory, name: e.target.value })}
+            required
+          />
+          <TextField
+            margin="dense"
+            label={t('adminPage.categoryTable.description')}
+            type="text"
+            fullWidth
+            multiline
+            rows={4}
+            variant="outlined"
+            value={editedCategory.description}
+            onChange={(e) => setEditedCategory({ ...editedCategory, description: e.target.value })}
+          />
         </form>
-      </div>
-    </div>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{t('adminPage.buttons.cancel')}</Button>
+        <Button type="submit" form="category-edit-form" variant="contained">
+          {t('adminPage.buttons.save')}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

@@ -1,4 +1,8 @@
 import { useTranslation } from 'react-i18next';
+import {
+  Typography, Card, CardContent, TableContainer, Table, TableHead, TableRow,
+  TableCell, TableBody, Checkbox, Button, Box
+} from '@mui/material';
 
 interface UserDetail {
   id: string;
@@ -11,48 +15,66 @@ interface UserDetail {
 
 interface UserTableProps {
   users: UserDetail[];
-  currentUserId: string | undefined;
+  currentUser: { userId: string } | null;
   onEdit: (user: UserDetail) => void;
   onDelete: (user: UserDetail) => void;
 }
 
-export function UserTable({ users, currentUserId, onEdit, onDelete }: UserTableProps) {
+export function UserTable({ users, currentUser, onEdit, onDelete }: UserTableProps) {
   const { t } = useTranslation();
 
-  if (users.length === 0) {
-    return <p>No users found.</p>;
-  }
-
   return (
-    <section>
-      <h2>{t('adminPage.userManagementTitle')}</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>{t('adminPage.userTable.email')}</th>
-            <th>{t('adminPage.userTable.name')}</th>
-            <th>{t('adminPage.userTable.role')}</th>
-            <th>{t('adminPage.userTable.admin')}</th>
-            <th>{t('adminPage.userTable.actions')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => (
-            <tr key={u.id}>
-              <td>{u.email}</td>
-              <td>{u.firstName} {u.lastName || ''}</td>
-              <td>{u.role}</td>
-              <td><input type="checkbox" checked={u.isAdmin} disabled /></td>
-              <td>
-                <button onClick={() => onEdit(u)}>{t('adminPage.buttons.edit')}</button>
-                <button onClick={() => onDelete(u)} disabled={currentUserId === u.id} className="delete-button">
-                  {t('adminPage.buttons.delete')}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
+    <Card sx={{ mt: 4 }}>
+      <CardContent>
+        <Typography variant="h5" component="h2" gutterBottom>
+          {t('adminPage.userManagementTitle')}
+        </Typography>
+        {users.length === 0 ? (
+          <Typography>No users found.</Typography>
+        ) : (
+          <TableContainer>
+            <Table stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell>{t('adminPage.userTable.email')}</TableCell>
+                  <TableCell>{t('adminPage.userTable.name')}</TableCell>
+                  <TableCell>{t('adminPage.userTable.role')}</TableCell>
+                  <TableCell align="center">{t('adminPage.userTable.admin')}</TableCell>
+                  <TableCell align="right">{t('adminPage.userTable.actions')}</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.map((u) => (
+                  <TableRow key={u.id} hover>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>{u.firstName} {u.lastName || ''}</TableCell>
+                    <TableCell>{u.role}</TableCell>
+                    <TableCell align="center">
+                      <Checkbox checked={u.isAdmin} disabled />
+                    </TableCell>
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                        <Button size="small" variant="outlined" onClick={() => onEdit(u)}>
+                          {t('adminPage.buttons.edit')}
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          onClick={() => onDelete(u)}
+                          disabled={currentUser?.userId === u.id}
+                        >
+                          {t('adminPage.buttons.delete')}
+                        </Button>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -41,6 +41,7 @@ func main() {
 	r.Use(cors.New(config))
 
 	api := r.Group("/api")
+	api.Use(middleware.MaybeAuthMiddleware())
 	{
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(200, gin.H{"status": "ok"})
@@ -61,7 +62,20 @@ func main() {
 			protected.GET("/profile", appHandlers.GetMyProfile)
 			protected.PATCH("/profile", appHandlers.UpdateMyProfile)
 			protected.POST("/offers", appHandlers.CreateOffer)
+			protected.POST("/offers/:id/respond", appHandlers.RespondToOffer)
+			protected.GET("/offers/:id/applications", appHandlers.GetOfferApplications)
 
+			// Chat routes
+			chatGroup := protected.Group("/chats")
+			{
+				chatGroup.GET("", appHandlers.GetConversations)
+				chatGroup.POST("/initiate", appHandlers.InitiateChat)
+				chatGroup.GET("/:id", appHandlers.GetChatDetails)
+				chatGroup.GET("/:id/messages", appHandlers.GetMessages)
+				chatGroup.POST("/:id/messages", appHandlers.PostMessage)
+			}
+
+			// Admin routes
 			admin := protected.Group("/admin")
 			admin.Use(middleware.AdminAuthMiddleware())
 			{

@@ -15,7 +15,7 @@ type Store interface {
 	CreateUser(ctx context.Context, payload models.RegisterPayload, hashedPassword string) (string, error)
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	CreateOffer(ctx context.Context, userID string, payload models.CreateOfferPayload) (string, error)
-	GetOffers(ctx context.Context, offerTypeFilter string, search string, categoryID string) ([]models.OfferResponse, error)
+	GetOffers(ctx context.Context, offerTypeFilter string, search string, categoryID string, userID *string) ([]models.OfferResponse, error)
 	GetAllUsers(ctx context.Context) ([]models.UserDetail, error)
 	GetUserDetailByID(ctx context.Context, userID string) (*models.UserDetail, error)
 	UpdateUserDetail(ctx context.Context, userID string, payload models.UpdateUserPayload) error
@@ -30,6 +30,16 @@ type Store interface {
 	UpdateCategory(ctx context.Context, categoryID int, payload models.CategoryPayload) error
 	DeleteCategory(ctx context.Context, categoryID int) error
 	GetAdminStats(ctx context.Context) (*models.AdminStats, error)
+	CreateOfferResponse(ctx context.Context, response *models.OfferApplication) (string, error)
+	GetOfferApplications(ctx context.Context, offerID string) ([]models.OfferApplication, error)
+	GetOfferAuthor(ctx context.Context, offerID string) (string, error)
+
+	// Chat methods
+	InitiateChat(ctx context.Context, offerID, initiatorID, recipientID string) (string, error)
+	GetChatDetails(ctx context.Context, conversationID, userID string) (*models.ChatDetailsResponse, error)
+	PostMessage(ctx context.Context, conversationID, senderID, content string) (*models.MessageResponse, error)
+	GetMessages(ctx context.Context, conversationID, userID string) ([]models.MessageResponse, error)
+	GetConversations(ctx context.Context, userID string) ([]models.ConversationPreview, error)
 }
 
 type PostgresStore struct {
@@ -76,18 +86,22 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 	return &user, nil
 }
 
-func (s *PostgresStore) GetOffers(ctx context.Context, offerTypeFilter string, search string, categoryID string) ([]models.OfferResponse, error) {
-	baseQuery := `SELECT o.id, o.title, o.description, o.offer_type, o.created_at, 
-				   u.id as author_id, 
-				   up.first_name as author_first_name
-			FROM offers o
-			JOIN users u ON o.author_id = u.id
-			LEFT JOIN user_details up ON u.id = up.user_id
-			WHERE o.is_active = true`
+func (s *PostgresStore) GetOffers(ctx context.Context, offerTypeFilter string, search string, categoryID string, userID *string) ([]models.OfferResponse, error) {
+	baseQuery := `
+		SELECT o.id, o.title, o.description, o.offer_type, o.created_at,
+			   u.id as author_id,
+			   up.first_name as author_first_name,
+			   CASE WHEN $1::UUID IS NOT NULL THEN EXISTS (
+				   SELECT 1 FROM offer_responses orr WHERE orr.offer_id = o.id AND orr.applicant_id = $1::UUID
+			   ) ELSE FALSE END as has_responded
+		FROM offers o
+		JOIN users u ON o.author_id = u.id
+		LEFT JOIN user_details up ON u.id = up.user_id
+		WHERE o.is_active = true`
 
-	args := []interface{}{}
+	args := []interface{}{userID}
 	whereClauses := []string{}
-	argCount := 1
+	argCount := 2 // Start at 2 because $1 is for userID
 
 	if offerTypeFilter != "" {
 		whereClauses = append(whereClauses, fmt.Sprintf("o.offer_type = $%d", argCount))
@@ -96,9 +110,10 @@ func (s *PostgresStore) GetOffers(ctx context.Context, offerTypeFilter string, s
 	}
 
 	if search != "" {
-		whereClauses = append(whereClauses, fmt.Sprintf("(LOWER(o.title) LIKE $%d OR LOWER(o.description) LIKE $%d)", argCount, argCount))
-		args = append(args, "%"+strings.ToLower(search)+"%")
-		argCount++
+		// Use separate placeholders for title and description search
+		whereClauses = append(whereClauses, fmt.Sprintf("(LOWER(o.title) LIKE $%d OR LOWER(o.description) LIKE $%d)", argCount, argCount+1))
+		args = append(args, "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
+		argCount += 2
 	}
 
 	if categoryID != "" {
@@ -122,7 +137,7 @@ func (s *PostgresStore) GetOffers(ctx context.Context, offerTypeFilter string, s
 	offers := make([]models.OfferResponse, 0)
 	for rows.Next() {
 		var offer models.OfferResponse
-		if err := rows.Scan(&offer.ID, &offer.Title, &offer.Description, &offer.OfferType, &offer.CreatedAt, &offer.AuthorID, &offer.AuthorFirstName); err != nil {
+		if err := rows.Scan(&offer.ID, &offer.Title, &offer.Description, &offer.OfferType, &offer.CreatedAt, &offer.AuthorID, &offer.AuthorFirstName, &offer.HasResponded); err != nil {
 			log.Printf("Error scanning offer row: %v", err)
 			continue
 		}
@@ -365,8 +380,293 @@ func (s *PostgresStore) GetAdminStats(ctx context.Context) (*models.AdminStats, 
 		&stats.TotalServiceRequests,
 		&stats.TotalServiceOffers,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get admin stats: %w", err)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get admin stats: %w", err)
+		}
+		return &stats, nil
 	}
-	return &stats, nil
+	
+func (s *PostgresStore) CreateOfferResponse(ctx context.Context, response *models.OfferApplication) (string, error) {
+	// First, check if a response from this applicant for this offer already exists.
+	var exists bool
+	err := s.dbpool.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM offer_responses WHERE offer_id = $1 AND applicant_id = $2)",
+		response.OfferID, response.ApplicantID).Scan(&exists)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to check for existing response: %w", err)
+	}
+	if exists {
+		return "", fmt.Errorf("response already exists") // Return a specific error
+	}
+
+	// If no response exists, create a new one.
+	var id string
+	query := `INSERT INTO offer_responses (offer_id, applicant_id, message)
+			  VALUES ($1, $2, $3) RETURNING id`
+	err = s.dbpool.QueryRow(ctx, query, response.OfferID, response.ApplicantID, response.Message).Scan(&id)
+	if err != nil {
+		return "", fmt.Errorf("failed to create offer response: %w", err)
+	}
+	return id, nil
 }
+
+func (s *PostgresStore) GetOfferApplications(ctx context.Context, offerID string) ([]models.OfferApplication, error) {
+	query := `
+		SELECT
+			r.id, r.offer_id, r.applicant_id, r.message, r.status, r.created_at,
+			ud.first_name, ud.average_rating
+		FROM offer_responses r
+		JOIN user_details ud ON r.applicant_id = ud.user_id
+		WHERE r.offer_id = $1
+		ORDER BY r.created_at DESC
+	`
+	rows, err := s.dbpool.Query(ctx, query, offerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch offer applications: %w", err)
+	}
+	defer rows.Close()
+
+	applications := make([]models.OfferApplication, 0)
+	for rows.Next() {
+		var app models.OfferApplication
+		if err := rows.Scan(
+			&app.ID, &app.OfferID, &app.ApplicantID, &app.Message, &app.Status, &app.CreatedAt,
+			&app.ApplicantFirstName, &app.ApplicantRating,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan offer application: %w", err)
+		}
+		applications = append(applications, app)
+	}
+
+	return applications, nil
+}
+
+func (s *PostgresStore) GetOfferAuthor(ctx context.Context, offerID string) (string, error) {
+	var authorID string
+	err := s.dbpool.QueryRow(ctx, "SELECT author_id FROM offers WHERE id = $1", offerID).Scan(&authorID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get offer author: %w", err)
+	}
+	return authorID, nil
+}
+
+// --- Chat Implementations ---
+
+func (s *PostgresStore) InitiateChat(ctx context.Context, offerID, initiatorID, recipientID string) (string, error) {
+	tx, err := s.dbpool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Check if a conversation already exists for this offer with these two participants
+	var conversationID string
+	err = tx.QueryRow(ctx, `
+		SELECT cp1.conversation_id
+		FROM conversation_participants cp1
+		JOIN conversation_participants cp2 ON cp1.conversation_id = cp2.conversation_id
+		JOIN conversations c ON cp1.conversation_id = c.id
+		WHERE c.offer_id = $1
+		  AND cp1.user_id = $2
+		  AND cp2.user_id = $3
+	`, offerID, initiatorID, recipientID).Scan(&conversationID)
+
+	// If a conversation is found, return its ID
+	if err == nil {
+		return conversationID, nil
+	}
+	// If no rows are found, that's expected, so we continue. Any other error is a problem.
+	if err != nil && err.Error() != "no rows in result set" {
+		return "", fmt.Errorf("failed to check for existing conversation: %w", err)
+	}
+
+	// No existing conversation found, so create a new one
+	err = tx.QueryRow(ctx,
+		"INSERT INTO conversations (offer_id) VALUES ($1) RETURNING id",
+		offerID).Scan(&conversationID)
+	if err != nil {
+		return "", fmt.Errorf("failed to create conversation: %w", err)
+	}
+
+	// Add both users as participants
+	_, err = tx.Exec(ctx,
+		"INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2), ($1, $3)",
+		conversationID, initiatorID, recipientID)
+	if err != nil {
+		return "", fmt.Errorf("failed to add participants to conversation: %w", err)
+	}
+
+	return conversationID, tx.Commit(ctx)
+}
+
+func (s *PostgresStore) GetChatDetails(ctx context.Context, conversationID, userID string) (*models.ChatDetailsResponse, error) {
+	// First, verify the user is part of the conversation
+	var isParticipant bool
+	err := s.dbpool.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2)",
+		conversationID, userID).Scan(&isParticipant)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify participant: %w", err)
+	}
+	if !isParticipant {
+		return nil, fmt.Errorf("user is not a participant in this conversation")
+	}
+
+	// Get conversation and offer details
+	var details models.ChatDetailsResponse
+	err = s.dbpool.QueryRow(ctx, `
+		SELECT c.id, c.offer_id, o.title
+		FROM conversations c
+		JOIN offers o ON c.offer_id = o.id
+		WHERE c.id = $1
+	`, conversationID).Scan(&details.ConversationID, &details.OfferID, &details.OfferTitle)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get conversation details: %w", err)
+	}
+
+	// Get participant details
+	rows, err := s.dbpool.Query(ctx, `
+		SELECT u.id, u.email, u.role, u.created_at, u.updated_at, 
+			   ud.first_name, ud.last_name, ud.phone_number, ud.bio, ud.years_of_experience, ud.average_rating
+		FROM users u
+		JOIN user_details ud ON u.id = ud.user_id
+		JOIN conversation_participants cp ON u.id = cp.user_id
+		WHERE cp.conversation_id = $1
+	`, conversationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get participant details: %w", err)
+	}
+	defer rows.Close()
+
+	participants := make([]models.UserDetail, 0)
+	for rows.Next() {
+		var p models.UserDetail
+		if err := rows.Scan(&p.ID, &p.Email, &p.Role, &p.CreatedAt, &p.UpdatedAt, &p.FirstName, &p.LastName, &p.PhoneNumber, &p.Bio, &p.YearsOfExperience, &p.AverageRating); err != nil {
+			return nil, fmt.Errorf("failed to scan participant detail: %w", err)
+		}
+		participants = append(participants, p)
+	}
+	details.Participants = participants
+
+	return &details, nil
+}
+
+func (s *PostgresStore) PostMessage(ctx context.Context, conversationID, senderID, content string) (*models.MessageResponse, error) {
+	var msg models.MessageResponse
+	err := s.dbpool.QueryRow(ctx, `
+		WITH inserted_message AS (
+			INSERT INTO messages (conversation_id, sender_id, content)
+			VALUES ($1, $2, $3)
+			RETURNING id, conversation_id, sender_id, content, created_at, is_read
+		)
+		SELECT m.id, m.conversation_id, m.sender_id, ud.first_name, m.content, m.created_at, m.is_read
+		FROM inserted_message m
+		JOIN user_details ud ON m.sender_id = ud.user_id
+	`, conversationID, senderID, content).Scan(
+		&msg.ID, &msg.ConversationID, &msg.SenderID, &msg.SenderFirstName, &msg.Content, &msg.CreatedAt, &msg.IsRead,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to post message: %w", err)
+	}
+	return &msg, nil
+}
+
+func (s *PostgresStore) GetMessages(ctx context.Context, conversationID, userID string) ([]models.MessageResponse, error) {
+	// Verify the user is part of the conversation
+	var isParticipant bool
+	err := s.dbpool.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2)",
+		conversationID, userID).Scan(&isParticipant)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify participant: %w", err)
+	}
+	if !isParticipant {
+		return nil, fmt.Errorf("user is not a participant in this conversation")
+	}
+
+	rows, err := s.dbpool.Query(ctx, `
+		SELECT m.id, m.conversation_id, m.sender_id, ud.first_name, m.content, m.created_at, m.is_read
+		FROM messages m
+		JOIN user_details ud ON m.sender_id = ud.user_id
+		WHERE m.conversation_id = $1
+		ORDER BY m.created_at ASC
+	`, conversationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get messages: %w", err)
+	}
+	defer rows.Close()
+
+	messages := make([]models.MessageResponse, 0)
+	for rows.Next() {
+		var msg models.MessageResponse
+		if err := rows.Scan(&msg.ID, &msg.ConversationID, &msg.SenderID, &msg.SenderFirstName, &msg.Content, &msg.CreatedAt, &msg.IsRead); err != nil {
+			return nil, fmt.Errorf("failed to scan message: %w", err)
+		}
+		messages = append(messages, msg)
+	}
+
+	return messages, nil
+}
+
+func (s *PostgresStore) GetConversations(ctx context.Context, userID string) ([]models.ConversationPreview, error) {
+	query := `
+		WITH LastMessage AS (
+			SELECT
+				conversation_id,
+				content,
+				created_at,
+				ROW_NUMBER() OVER(PARTITION BY conversation_id ORDER BY created_at DESC) as rn
+			FROM messages
+		)
+		SELECT
+			c.id as conversation_id,
+			other_p.user_id as other_participant_id,
+			other_ud.first_name as other_participant_name,
+			COALESCE(lm.content, '') as last_message_content,
+			COALESCE(lm.created_at, c.created_at) as last_message_at,
+			o.title as offer_title
+		FROM
+			conversations c
+		JOIN
+			conversation_participants current_p ON c.id = current_p.conversation_id
+		JOIN
+			conversation_participants other_p ON c.id = other_p.conversation_id AND current_p.user_id != other_p.user_id
+		JOIN
+			user_details other_ud ON other_p.user_id = other_ud.user_id
+		JOIN
+			offers o ON c.offer_id = o.id
+		LEFT JOIN
+			LastMessage lm ON c.id = lm.conversation_id AND lm.rn = 1
+		WHERE
+			current_p.user_id = $1
+		ORDER BY
+			last_message_at DESC
+	`
+
+	rows, err := s.dbpool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get conversations: %w", err)
+	}
+	defer rows.Close()
+
+	conversations := make([]models.ConversationPreview, 0)
+	for rows.Next() {
+		var convo models.ConversationPreview
+		if err := rows.Scan(
+			&convo.ConversationID,
+			&convo.OtherParticipantID,
+			&convo.OtherParticipantName,
+			&convo.LastMessageContent,
+			&convo.LastMessageAt,
+			&convo.OfferTitle,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan conversation preview: %w", err)
+		}
+		conversations = append(conversations, convo)
+	}
+
+	return conversations, nil
+}
+
+	

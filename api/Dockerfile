@@ -20,14 +20,30 @@ RUN CGO_ENABLED=0 go build -o /app/main .
 # Этап 2: Создание минимального образа для запуска
 FROM alpine:latest
 
-# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем только собранный бинарный файл из этапа сборки
+# Установка зависимостей для migrate
+RUN apk add --no-cache curl
+
+# Загрузка и установка migrate
+RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.1/migrate.linux-amd64.tar.gz | tar xvz
+RUN mv migrate /app/migrate
+RUN chmod +x /app/migrate
+
+# Копируем собранный бинарный файл из этапа сборки
 COPY --from=builder /app/main .
 
-# Открываем порт, на котором будет работать наше приложение
+# Копируем файлы миграций
+COPY ./db/migration ./migration
+
+# Копируем и делаем исполняемым entrypoint скрипт
+COPY ./entrypoint.sh .
+RUN chmod +x ./entrypoint.sh
+
 EXPOSE 8080
 
-# Команда для запуска нашего сервера при старте контейнера
+# Устанавливаем entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
+
+# Команда по умолчанию для entrypoint
 CMD ["./main"]

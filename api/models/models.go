@@ -35,6 +35,38 @@ type CategoryPayload struct {
 	Description *string `json:"description"`
 }
 
+type Offer struct {
+	ID          string    `json:"id"`
+	AuthorID    string    `json:"authorId"`
+	OfferType   string    `json:"offerType" binding:"required,oneof=service_offer request_for_service"`
+	Title       string    `json:"title" binding:"required"`
+	Description string    `json:"description"`
+	CategoryID  int       `json:"categoryId" binding:"required"`
+	IsActive    bool      `json:"isActive"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+// OfferApplication представляет отклик пользователя на объявление
+type OfferApplication struct {
+	ID                 string    `json:"id"`
+	OfferID            string    `json:"offerId"`
+	ApplicantID        string    `json:"applicantId"`
+	Message            string    `json:"message"`
+	Status             string    `json:"status"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
+	ApplicantFirstName string    `json:"applicantFirstName,omitempty"`
+	ApplicantRating    float32   `json:"applicantRating,omitempty"`
+}
+
+// RespondToOfferPayload представляет тело запроса при отклике на объявление
+type RespondToOfferPayload struct {
+	Message string `json:"message"`
+}
+
+// OfferResponse используется для отображения списка объявлений с информацией об авторе
 type OfferResponse struct {
 	ID              string    `json:"id"`
 	Title           string    `json:"title"`
@@ -43,6 +75,20 @@ type OfferResponse struct {
 	CreatedAt       time.Time `json:"createdAt"`
 	AuthorID        string    `json:"authorId"`
 	AuthorFirstName string    `json:"authorFirstName"`
+	HasResponded    bool      `json:"hasResponded"`
+}
+
+type Job struct {
+	ID          string    `json:"id"`
+	OfferID     string    `json:"offerId"`
+	ClientID    string    `json:"clientId"`
+	MasterID    string    `json:"masterId"`
+	Status      string    `json:"status"`
+	ScheduledFor *time.Time `json:"scheduledFor"`
+	StartedAt   *time.Time `json:"startedAt"`
+	CompletedAt *time.Time `json:"completedAt"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 type AdminOfferResponse struct {
@@ -107,4 +153,66 @@ type Claims struct {
 	Email   string `json:"email"`
 	IsAdmin bool   `json:"isAdmin"`
 	jwt.RegisteredClaims
+}
+
+// --- Chat Models ---
+
+type Conversation struct {
+	ID        string    `json:"id"`
+	OfferID   string    `json:"offerId"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type ConversationParticipant struct {
+	ConversationID string `json:"conversationId"`
+	UserID         string `json:"userId"`
+}
+
+type Message struct {
+	ID             string    `json:"id"`
+	ConversationID string    `json:"conversationId"`
+	SenderID       string    `json:"senderId"`
+	Content        string    `json:"content"`
+	CreatedAt      time.Time `json:"createdAt"`
+	IsRead         bool      `json:"isRead"`
+}
+
+// InitiateChatPayload является телом запроса для создания чата
+type InitiateChatPayload struct {
+	OfferID     string `json:"offerId" binding:"required"`
+	RecipientID string `json:"recipientId" binding:"required"`
+}
+
+// SendMessagePayload является телом запроса для отправки сообщения
+type SendMessagePayload struct {
+	Content string `json:"content" binding:"required"`
+}
+
+// MessageResponse используется для отображения сообщения с информацией об отправителе
+type MessageResponse struct {
+	ID              string    `json:"id"`
+	ConversationID  string    `json:"conversationId"`
+	SenderID        string    `json:"senderId"`
+	SenderFirstName string    `json:"senderFirstName"`
+	Content         string    `json:"content"`
+	CreatedAt       time.Time `json:"createdAt"`
+	IsRead          bool      `json:"isRead"`
+}
+
+// ChatDetailsResponse используется для отображения деталей чата
+type ChatDetailsResponse struct {
+	ConversationID string       `json:"conversationId"`
+	OfferTitle     string       `json:"offerTitle"`
+	OfferID        string       `json:"offerId"`
+	Participants   []UserDetail `json:"participants"`
+}
+
+// ConversationPreview используется для отображения списка чатов
+type ConversationPreview struct {
+	ConversationID       string    `json:"conversationId"`
+	OtherParticipantID   string    `json:"otherParticipantId"`
+	OtherParticipantName string    `json:"otherParticipantName"`
+	LastMessageContent   string    `json:"lastMessageContent"`
+	LastMessageAt        time.Time `json:"lastMessageAt"`
+	OfferTitle           string    `json:"offerTitle"`
 }

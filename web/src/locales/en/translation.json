@@ -22,24 +22,30 @@
   },
   "loginPage": {
     "title": "Login",
-    "emailPlaceholder": "Email",
-    "passwordPlaceholder": "Password",
-    "loginButton": "Login",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "submitButton": "Login",
     "loggingIn": "Logging in...",
     "success": "Login successful! Redirecting...",
-    "errorPrefix": "Error"
+    "errorPrefix": "Error",
+    "errors": {
+      "default": "Failed to login. Please check your credentials."
+    }
   },
   "registerPage": {
     "title": "Register",
-    "emailPlaceholder": "Email",
-    "passwordPlaceholder": "Password",
-    "firstNamePlaceholder": "First Name",
-    "lastNamePlaceholder": "Last Name (optional)",
-    "phonePlaceholder": "Phone Number (optional)",
-    "registerButton": "Register",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "firstNameLabel": "First Name",
+    "submitButton": "Register",
     "registering": "Registering...",
     "success": "Registration successful!",
-    "errorPrefix": "Error"
+    "errors": {
+      "default": "Failed to register."
+    },
+    "validation": {
+      "passwordMinLength": "Password must be at least {{min}} characters long."
+    }
   },
   "offersPage": {
     "mastersOffers": "Masters' Offers",
@@ -60,7 +66,21 @@
     "postedDate": "Posted:",
     "searchPlaceholder": "Search by keyword...",
     "allCategories": "All Categories",
-    "applyFiltersButton": "Apply Filters"
+    "applyFiltersButton": "Apply Filters",
+    "respondButton": "Respond",
+    "responseModalTitle": "Respond to Offer",
+    "responseMessageLabel": "Your Message",
+    "responseMessagePlaceholder": "Propose your price, specify terms, or ask a question",
+    "sendResponseButton": "Send Response",
+    "sendResponseError": "Failed to send response",
+    "viewApplicantsButton": "View Applicants",
+    "applicantsModalTitle": "Applicants for Offer",
+    "applicantsLoading": "Loading applicants...",
+    "applicantsError": "Failed to load applicants",
+    "noApplicants": "No applicants for this offer yet.",
+    "acceptButton": "Accept",
+    "rejectButton": "Reject",
+    "applicantRating": "Rating: {{rating}}"
   },
   "profilePage": {
     "title": "My Profile",
@@ -97,7 +117,9 @@
       "title": "Title",
       "author": "Author",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "active": "Active",
+      "inactive": "Inactive"
     },
     "categoryManagementTitle": "Category Management",
     "categoryTable": {
@@ -127,7 +149,25 @@
       "deleteCategoryText": "Are you sure you want to delete the category <strong>{{name}}</strong>? This might affect existing offers.",
       "permissionDeniedTitle": "Permission Denied",
       "addCategoryTitle": "Add Category",
-      "editCategoryTitle": "Edit Category"
+      "editCategoryTitle": "Edit Category",
+      "firstNameLabel": "First Name",
+      "lastNameLabel": "Last Name",
+      "isAdminLabel": "Is Admin"
+    },
+    "notifications": {
+        "userUpdated": "User updated successfully.",
+        "userDeleted": "User deleted.",
+        "offerDeleted": "Offer deleted.",
+        "offerStatusChanged": "Offer status changed.",
+        "categoryCreated": "Category created.",
+        "categoryUpdated": "Category updated.",
+        "categoryDeleted": "Category deleted."
     }
+  },
+  "errors": {
+    "default": "An unexpected error occurred. Please try again.",
+    "invalidCredentials": "Invalid email or password.",
+    "emailInUse": "This email is already registered.",
+    "networkError": "Network error. Could not connect to the server."
   }
 }

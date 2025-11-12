@@ -41,6 +41,41 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+// MaybeAuthMiddleware извлекает информацию о пользователе из токена, если он предоставлен,
+// но не требует его наличия.
+func MaybeAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		const bearerSchema = "Bearer "
+		if len(authHeader) < len(bearerSchema) || authHeader[:len(bearerSchema)] != bearerSchema {
+			c.Next()
+			return
+		}
+
+		tokenString := authHeader[len(bearerSchema):]
+		claims := &models.Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return utils.GetJWTKey(), nil
+		})
+
+		// Если токен валиден, устанавливаем информацию о пользователе
+		if err == nil && token.Valid {
+			c.Set("userID", claims.UserID)
+			c.Set("isAdmin", claims.IsAdmin)
+		}
+
+		c.Next()
+	}
+}
+
 // AdminAuthMiddleware проверяет, является ли пользователь администратором
 func AdminAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {

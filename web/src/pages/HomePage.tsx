@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { OfferList } from '../components/OfferList';
+import {
+  Container, Button, Typography, Box, Card, CardContent, CircularProgress, Alert, Snackbar,
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem,
+  FormControl, InputLabel, RadioGroup, FormControlLabel, Radio, ToggleButtonGroup, ToggleButton
+} from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-
-// Эти компоненты можно было бы вынести в свои файлы, но для простоты оставим здесь
+import { OfferList } from '../components/OfferList';
+import { OfferResponseModal } from '../components/OfferResponseModal';
+import { OfferApplicantsModal } from '../components/OfferApplicantsModal';
 
 interface ServiceCategory {
   id: number;
@@ -12,35 +17,37 @@ interface ServiceCategory {
 
 type OfferType = 'service_offer' | 'request_for_service';
 
-function CreateOfferForm({ onOfferCreated, onClose }: { onOfferCreated: (offerType: OfferType) => void, onClose: () => void }) {
+function CreateOfferForm({ open, onClose, onOfferCreated }: { open: boolean, onClose: () => void, onOfferCreated: (offerType: OfferType) => void }) {
   const { t } = useTranslation();
   const { token } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
+  const [categoryId, setCategoryId] = useState<number | ''>('');
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [selectedOfferType, setSelectedOfferType] = useState<OfferType>('service_offer');
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/categories');
-        if (!response.ok) throw new Error('Failed to fetch categories');
-        const data: ServiceCategory[] = await response.json();
-        setCategories(data);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchCategories();
-  }, []);
+    if (open) {
+      const fetchCategories = async () => {
+        try {
+          const response = await fetch('/api/categories');
+          if (!response.ok) throw new Error('Failed to fetch categories');
+          const data: ServiceCategory[] = await response.json();
+          setCategories(data);
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      fetchCategories();
+    }
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+    setSubmitting(true);
     try {
       const payload = {
         title,
@@ -55,57 +62,49 @@ function CreateOfferForm({ onOfferCreated, onClose }: { onOfferCreated: (offerTy
       });
       if (!response.ok) {
         const text = await response.text();
-        try {
-          const errorData = JSON.parse(text);
-          throw new Error(errorData.details || errorData.error || 'Failed to create offer');
-        } catch (jsonError) {
-          throw new Error(text || 'Failed to create offer');
-        }
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.details || errorData.error || 'Failed to create offer');
       }
-      setTitle('');
-      setDescription('');
-      setCategoryId(undefined);
       onOfferCreated(selectedOfferType);
-      onClose(); // Закрываем модальное окно после успеха
+      onClose();
     } catch (e) {
       if (e instanceof Error) setError(e.message);
       else setError('An unknown error occurred');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="modal-content">
-      <form onSubmit={handleSubmit} className="create-offer-form">
-        <h3>{t('offersPage.createOfferTitle')}</h3>
-        {error && <p className="error-message">{error}</p>}
-        <div className="form-group">
-          <label>{t('offersPage.offerTypeLabel')}</label>
-          <div><label><input type="radio" value="service_offer" checked={selectedOfferType === 'service_offer'} onChange={() => setSelectedOfferType('service_offer')} /> {t('offersPage.offerTypeMaster')}</label></div>
-          <div><label><input type="radio" value="request_for_service" checked={selectedOfferType === 'request_for_service'} onChange={() => setSelectedOfferType('request_for_service')} /> {t('offersPage.offerTypeClient')}</label></div>
-        </div>
-        <div className="form-group">
-          <label htmlFor="categoryId">{t('offersPage.categoryLabel')}</label>
-          <select id="categoryId" value={categoryId || ''} onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : undefined)}>
-            <option value="">{t('offersPage.selectCategory')}</option>
-            {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-          </select>
-        </div>
-        <div className="form-group">
-          <label htmlFor="title">{t('offersPage.titleLabel')}</label>
-          <input id="title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
-        </div>
-        <div className="form-group">
-          <label htmlFor="description">{t('offersPage.descriptionLabel')}</label>
-          <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-        <div className="modal-actions">
-            <button type="submit" disabled={submitting}>{submitting ? t('offersPage.submitting') : t('offersPage.createOfferButton')}</button>
-            <button type="button" onClick={onClose}>{t('adminPage.buttons.cancel')}</button>
-        </div>
-      </form>
-    </div>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>{t('offersPage.createOfferTitle')}</DialogTitle>
+      <DialogContent>
+        <Box component="form" id="create-offer-form" onSubmit={handleSubmit} sx={{ pt: 1 }}>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          <FormControl component="fieldset" margin="normal">
+            <RadioGroup row value={selectedOfferType} onChange={(e) => setSelectedOfferType(e.target.value as OfferType)}>
+              <FormControlLabel value="service_offer" control={<Radio />} label={t('offersPage.offerTypeMaster')} />
+              <FormControlLabel value="request_for_service" control={<Radio />} label={t('offersPage.offerTypeClient')} />
+            </RadioGroup>
+          </FormControl>
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="category-label">{t('offersPage.categoryLabel')}</InputLabel>
+            <Select labelId="category-label" value={categoryId} onChange={(e) => setCategoryId(e.target.value as number | '')} label={t('offersPage.categoryLabel')}>
+              <MenuItem value=""><em>{t('offersPage.selectCategory')}</em></MenuItem>
+              {categories.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <TextField margin="normal" required fullWidth label={t('offersPage.titleLabel')} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <TextField margin="normal" fullWidth multiline rows={4} label={t('offersPage.descriptionLabel')} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{t('adminPage.buttons.cancel')}</Button>
+        <Button type="submit" form="create-offer-form" variant="contained" disabled={submitting}>
+          {submitting ? <CircularProgress size={24} /> : t('offersPage.createOfferButton')}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -124,50 +123,56 @@ function FilterBar({ onFilterChange }: { onFilterChange: (filters: { search: str
     fetchCategories();
   }, []);
 
-  const handleFilter = () => {
-    onFilterChange({ search, category });
-  };
-
   return (
-    <div className="filter-bar">
-      <input
-        type="text"
-        placeholder={t('offersPage.searchPlaceholder')}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <select value={category} onChange={(e) => setCategory(e.target.value)}>
-        <option value="">{t('offersPage.allCategories')}</option>
-        {categories.map(cat => (
-          <option key={cat.id} value={cat.id}>{cat.name}</option>
-        ))}
-      </select>
-      <button onClick={handleFilter}>{t('offersPage.applyFiltersButton')}</button>
-    </div>
+    <Card sx={{ mb: 4 }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <TextField
+            variant="outlined"
+            size="small"
+            placeholder={t('offersPage.searchPlaceholder')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{ flexGrow: 1 }}
+          />
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>{t('offersPage.categoryLabel')}</InputLabel>
+            <Select value={category} onChange={(e) => setCategory(e.target.value)} label={t('offersPage.categoryLabel')}>
+              <MenuItem value="">{t('offersPage.allCategories')}</MenuItem>
+              {categories.map(cat => <MenuItem key={cat.id} value={String(cat.id)}>{cat.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Button variant="contained" onClick={() => onFilterChange({ search, category })}>{t('offersPage.applyFiltersButton')}</Button>
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
 
 export function HomePage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewType, setViewType] = useState<OfferType>('service_offer');
   const [filters, setFilters] = useState({ search: '', category: '' });
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const [respondingToOffer, setRespondingToOffer] = useState<string | null>(null);
+  const [viewingApplicantsFor, setViewingApplicantsFor] = useState<string | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOffers = async () => {
       setLoading(true);
       setError(null);
-      const params = new URLSearchParams({
-        type: viewType,
-        search: filters.search,
-        category: filters.category,
-      });
+      const params = new URLSearchParams({ type: viewType, search: filters.search, category: filters.category });
       try {
-        const response = await fetch(`/api/offers?${params.toString()}`);
+        const headers: HeadersInit = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const response = await fetch(`/api/offers?${params.toString()}`, { headers });
         if (!response.ok) throw new Error(`Network response was not ok`);
         const data = await response.json();
         setOffers(data);
@@ -179,43 +184,67 @@ export function HomePage() {
       }
     };
     fetchOffers();
-  }, [viewType, filters]);
+  }, [viewType, filters, token]);
 
   const handleOfferCreated = (createdType: OfferType) => {
     setViewType(createdType);
-    setFilters({ search: '', category: '' }); // Сбрасываем фильтры
+    setFilters({ search: '', category: '' });
+    setNotification("Объявление успешно создано!");
+  };
+
+  const handleResponseSent = () => {
+    setRespondingToOffer(null);
+    setNotification("Ваш отклик успешно отправлен!");
   };
 
   return (
-    <div className="page-container">
-      <h1>{t('homePage.welcome')}</h1>
-      {!user && <p>{t('homePage.loggedOut')}</p>}
+    <Container maxWidth="lg" sx={{ mt: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" component="h1">{t('homePage.welcome')}</Typography>
+        {user && <Button variant="contained" color="secondary" onClick={() => setCreateModalOpen(true)}>{t('offersPage.createOfferTitle')}</Button>}
+      </Box>
+      {!user && <Typography sx={{ mb: 2 }}>{t('homePage.loggedOut')}</Typography>}
+      
+      <CreateOfferForm open={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} onOfferCreated={handleOfferCreated} />
+      <OfferResponseModal 
+        open={!!respondingToOffer} 
+        onClose={() => setRespondingToOffer(null)} 
+        offerId={respondingToOffer}
+        onResponseSent={handleResponseSent}
+      />
+      <OfferApplicantsModal
+        open={!!viewingApplicantsFor}
+        onClose={() => setViewingApplicantsFor(null)}
+        offerId={viewingApplicantsFor}
+      />
+      <Snackbar 
+        open={!!notification} 
+        autoHideDuration={6000} 
+        onClose={() => setNotification(null)}
+        message={notification}
+      />
 
-      {user && (
-        <div className="create-offer-button-container">
-            <button onClick={() => setCreateModalOpen(true)}>{t('offersPage.createOfferTitle')}</button>
-        </div>
-      )}
-
-      {isCreateModalOpen && (
-        <div className="modal-overlay">
-            <CreateOfferForm 
-                onOfferCreated={handleOfferCreated} 
-                onClose={() => setCreateModalOpen(false)} 
-            />
-        </div>
-      )}
-
-      <hr />
-
-      <div className="view-toggle">
-        <button onClick={() => setViewType('service_offer')} className={viewType === 'service_offer' ? 'active' : ''}>{t('offersPage.mastersOffers')}</button>
-        <button onClick={() => setViewType('request_for_service')} className={viewType === 'request_for_service' ? 'active' : ''}>{t('offersPage.clientsRequests')}</button>
-      </div>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+        <ToggleButtonGroup
+          color="primary"
+          value={viewType}
+          exclusive
+          onChange={(_, newValue) => { if (newValue) setViewType(newValue); }}
+        >
+          <ToggleButton value="service_offer">{t('offersPage.mastersOffers')}</ToggleButton>
+          <ToggleButton value="request_for_service">{t('offersPage.clientsRequests')}</ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
       
       <FilterBar onFilterChange={setFilters} />
 
-      <OfferList offers={offers} loading={loading} error={error} />
-    </div>
+      <OfferList 
+        offers={offers} 
+        loading={loading} 
+        error={error} 
+        onRespond={setRespondingToOffer}
+        onViewApplicants={setViewingApplicantsFor}
+      />
+    </Container>
   );
 }

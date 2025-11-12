@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
+import {
+  Container, Box, Typography, TextField, Button, Card, CardContent,
+  CircularProgress, Alert
+} from '@mui/material';
 
-// Определяем интерфейс для данных профиля пользователя
 interface UserProfile {
   firstName: string;
   lastName: string | null;
@@ -19,7 +22,6 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Загрузка данных профиля
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
@@ -27,9 +29,7 @@ export function ProfilePage() {
         const response = await fetch('/api/profile', {
           headers: { 'Authorization': `Bearer ${token}` },
         });
-        if (!response.ok) {
-          throw new Error('Failed to fetch profile data.');
-        }
+        if (!response.ok) throw new Error('Failed to fetch profile data.');
         const data = await response.json();
         setProfile(data);
       } catch (err) {
@@ -38,112 +38,116 @@ export function ProfilePage() {
         setLoading(false);
       }
     };
-
-    if (token) {
-      fetchProfile();
-    }
+    if (token) fetchProfile();
   }, [token]);
 
-  // Обработчик изменений в форме
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfile(prev => prev ? { ...prev, [name]: value || null } : null);
   };
 
-  // Обработчик сохранения
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
-
     setMessage(null);
     setError(null);
-
     try {
       const response = await fetch('/api/profile', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           ...profile,
           yearsOfExperience: profile.yearsOfExperience ? Number(profile.yearsOfExperience) : null,
         }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.details || data.error || 'Failed to update profile.');
-      }
-
+      if (!response.ok) throw new Error(data.details || data.error || 'Failed to update profile.');
       setMessage(t('profilePage.successMessage'));
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
   };
 
   if (loading) {
-    return <div className="page-container">{t('profilePage.loading')}</div>;
+    return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
   }
 
   if (error && !profile) {
-    return <div className="page-container">{t('loginPage.errorPrefix')}: {error}</div>;
+    return <Container maxWidth="sm" sx={{ mt: 4 }}><Alert severity="error">{t('loginPage.errorPrefix')}: {error}</Alert></Container>;
   }
 
   return (
-    <div className="page-container">
-      <h2>{t('profilePage.title')}</h2>
-      {profile && (
-        <form onSubmit={handleSubmit} className="auth-form">
-          {message && <p className="form-message success-message">{message}</p>}
-          {error && <p className="form-message error-message">{error}</p>}
-
-          <label>{t('profilePage.firstNameLabel')}</label>
-          <input
-            type="text"
-            name="firstName"
-            value={profile.firstName || ''}
-            onChange={handleChange}
-            required
-          />
-
-          <label>{t('profilePage.lastNameLabel')}</label>
-          <input
-            type="text"
-            name="lastName"
-            value={profile.lastName || ''}
-            onChange={handleChange}
-          />
-
-          <label>{t('profilePage.phoneLabel')}</label>
-          <input
-            type="tel"
-            name="phoneNumber"
-            value={profile.phoneNumber || ''}
-            onChange={handleChange}
-          />
-
-          <label>{t('profilePage.bioLabel')}</label>
-          <textarea
-            name="bio"
-            value={profile.bio || ''}
-            onChange={handleChange}
-            placeholder={t('profilePage.bioPlaceholder')}
-          />
-
-          <label>{t('profilePage.experienceLabel')}</label>
-          <input
-            type="number"
-            name="yearsOfExperience"
-            value={profile.yearsOfExperience || ''}
-            onChange={handleChange}
-          />
-
-          <button type="submit">{t('profilePage.saveButton')}</button>
-        </form>
-      )}
-    </div>
+    <Container maxWidth="md">
+      <Box sx={{ mt: 4 }}>
+        <Card>
+          <CardContent sx={{ p: 4 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+              {t('profilePage.title')}
+            </Typography>
+            {profile && (
+              <Box component="form" onSubmit={handleSubmit} noValidate>
+                {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
+                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  label={t('profilePage.firstNameLabel')}
+                  name="firstName"
+                  value={profile.firstName || ''}
+                  onChange={handleChange}
+                />
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label={t('profilePage.lastNameLabel')}
+                  name="lastName"
+                  value={profile.lastName || ''}
+                  onChange={handleChange}
+                />
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label={t('profilePage.phoneLabel')}
+                  name="phoneNumber"
+                  type="tel"
+                  value={profile.phoneNumber || ''}
+                  onChange={handleChange}
+                />
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  multiline
+                  rows={4}
+                  label={t('profilePage.bioLabel')}
+                  name="bio"
+                  value={profile.bio || ''}
+                  onChange={handleChange}
+                  placeholder={t('profilePage.bioPlaceholder')}
+                />
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  label={t('profilePage.experienceLabel')}
+                  name="yearsOfExperience"
+                  type="number"
+                  value={profile.yearsOfExperience || ''}
+                  onChange={handleChange}
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  sx={{ mt: 3, mb: 2 }}
+                >
+                  {t('profilePage.saveButton')}
+                </Button>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
+    </Container>
   );
 }

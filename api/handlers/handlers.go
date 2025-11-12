@@ -1,13 +1,13 @@
 package handlers
 
 import (
+	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-
 	"masterdom/api/models"
 	"masterdom/api/store"
 	"masterdom/api/utils"
@@ -100,27 +100,94 @@ func (h *Handler) CreateOffer(c *gin.Context) {
 
 	offerID, err := h.Store.CreateOffer(c.Request.Context(), userID.(string), payload)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create offer", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create offer", "details": err.Error()})
 		return
 	}
 
-	c.JSON(201, gin.H{"message": "Offer created successfully", "offerId": offerID})
+	c.JSON(http.StatusCreated, gin.H{"offerId": offerID})
+}
+
+func (h *Handler) RespondToOffer(c *gin.Context) {
+	offerID := c.Param("id")
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var payload models.RespondToOfferPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	response := models.OfferApplication{
+		OfferID:     offerID,
+		ApplicantID: userID.(string),
+		Message:     payload.Message,
+	}
+
+	responseID, err := h.Store.CreateOfferResponse(c.Request.Context(), &response)
+	if err != nil {
+		if err.Error() == "response already exists" {
+			c.JSON(http.StatusConflict, gin.H{"error": "You have already responded to this offer"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create offer response", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"responseId": responseID})
+}
+
+func (h *Handler) GetOfferApplications(c *gin.Context) {
+	offerID := c.Param("id")
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Verify that the current user is the author of the offer
+	authorID, err := h.Store.GetOfferAuthor(c.Request.Context(), offerID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Offer not found"})
+		return
+	}
+	if authorID != userID.(string) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You are not authorized to view applications for this offer"})
+		return
+	}
+
+	applications, err := h.Store.GetOfferApplications(c.Request.Context(), offerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch offer applications", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, applications)
 }
 
 func (h *Handler) GetOffers(c *gin.Context) {
-	offerTypeFilter := c.Query("type")
+	offerType := c.Query("type")
 	search := c.Query("search")
-	categoryID := c.Query("category")
+	category := c.Query("category")
 
-	offers, err := h.Store.GetOffers(c.Request.Context(), offerTypeFilter, search, categoryID)
+	// userID может быть nil, если пользователь не аутентифицирован
+	var userID *string
+	if id, exists := c.Get("userID"); exists {
+		idStr := id.(string)
+		userID = &idStr
+	}
+
+	offers, err := h.Store.GetOffers(c.Request.Context(), offerType, search, category, userID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to fetch offers", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch offers", "details": err.Error()})
 		return
 	}
 
-	c.JSON(200, offers)
+	c.JSON(http.StatusOK, offers)
 }
-
 func (h *Handler) GetUsers(c *gin.Context) {
 	users, err := h.Store.GetAllUsers(c.Request.Context())
 	if err != nil {
@@ -364,4 +431,137 @@ func (h *Handler) UpdateMyProfile(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"message": "Profile updated successfully"})
 }
+
+// --- Chat Handlers ---
+
+func (h *Handler) InitiateChat(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var payload models.InitiateChatPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		return
+	}
+
+	// Ensure user is not trying to start a chat with themselves
+	if userID.(string) == payload.RecipientID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot start a chat with yourself"})
+		return
+	}
+
+	conversationID, err := h.Store.InitiateChat(c.Request.Context(), payload.OfferID, userID.(string), payload.RecipientID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to initiate chat", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"conversationId": conversationID})
+}
+
+func (h *Handler) GetChatDetails(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	conversationID := c.Param("id")
+	if conversationID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Conversation ID is required"})
+		return
+	}
+
+	details, err := h.Store.GetChatDetails(c.Request.Context(), conversationID, userID.(string))
+	if err != nil {
+		// Check for specific "not a participant" error to return a 403
+		if err.Error() == "user is not a participant in this conversation" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get chat details", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, details)
+}
+
+func (h *Handler) GetMessages(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	conversationID := c.Param("id")
+	if conversationID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Conversation ID is required"})
+		return
+	}
+
+	messages, err := h.Store.GetMessages(c.Request.Context(), conversationID, userID.(string))
+	if err != nil {
+		if err.Error() == "user is not a participant in this conversation" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get messages", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, messages)
+}
+
+func (h *Handler) PostMessage(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	conversationID := c.Param("id")
+	if conversationID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Conversation ID is required"})
+		return
+	}
+
+	var payload models.SendMessagePayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		return
+	}
+
+	// Here you might add a check to ensure the user is a participant before posting.
+	// The store method already does this, but an early check can be good.
+
+	message, err := h.Store.PostMessage(c.Request.Context(), conversationID, userID.(string), payload.Content)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to post message", "details": err.Error()})
+		return
+	}
+
+	// TODO: Broadcast message via WebSocket to other participants
+
+	c.JSON(http.StatusCreated, message)
+}
+
+func (h *Handler) GetConversations(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	conversations, err := h.Store.GetConversations(c.Request.Context(), userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get conversations", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, conversations)
+}
+
 

@@ -22,23 +22,30 @@
   },
   "loginPage": {
     "title": "Вход",
-    "emailPlaceholder": "Электронная почта",
-    "passwordPlaceholder": "Пароль",
-    "loginButton": "Войти",
+    "emailLabel": "Электронная почта",
+    "passwordLabel": "Пароль",
+    "submitButton": "Войти",
     "loggingIn": "Выполняется вход...",
     "success": "Вход выполнен успешно! Перенаправление...",
-    "errorPrefix": "Ошибка"
+    "errorPrefix": "Ошибка",
+    "errors": {
+      "default": "Не удалось войти. Проверьте свои данные."
+    }
   },
   "registerPage": {
     "title": "Регистрация",
-    "emailPlaceholder": "Электронная почта",
-    "passwordPlaceholder": "Пароль",
-    "firstNamePlaceholder": "Имя",
-    "lastNamePlaceholder": "Фамилия (необязательно)",
-    "phonePlaceholder": "Номер телефона (необязательно)",
-    "registerButton": "Зарегистрироваться",
+    "emailLabel": "Электронная почта",
+    "passwordLabel": "Пароль",
+    "firstNameLabel": "Имя",
+    "submitButton": "Зарегистрироваться",
     "registering": "Регистрация...",
-    "success": "Регистрация прошла успешно!"
+    "success": "Регистрация прошла успешно!",
+    "errors": {
+      "default": "Не удалось зарегистрироваться."
+    },
+    "validation": {
+      "passwordMinLength": "Пароль должен содержать не менее {{min}} символов."
+    }
   },
   "offersPage": {
     "mastersOffers": "Предложения мастеров",
@@ -59,7 +66,21 @@
     "postedDate": "Опубликовано:",
     "searchPlaceholder": "Поиск по ключевым словам...",
     "allCategories": "Все категории",
-    "applyFiltersButton": "Применить фильтры"
+    "applyFiltersButton": "Применить фильтры",
+    "respondButton": "Откликнуться",
+    "responseModalTitle": "Отклик на объявление",
+    "responseMessageLabel": "Ваше сообщение",
+    "responseMessagePlaceholder": "Предложите свою цену, укажите сроки или задайте вопрос",
+    "sendResponseButton": "Отправить отклик",
+    "sendResponseError": "Не удалось отправить отклик",
+    "viewApplicantsButton": "Просмотреть отклики",
+    "applicantsModalTitle": "Отклики на объявление",
+    "applicantsLoading": "Загрузка откликов...",
+    "applicantsError": "Не удалось загрузить отклики",
+    "noApplicants": "Пока нет откликов на это объявление.",
+    "acceptButton": "Принять",
+    "rejectButton": "Отклонить",
+    "applicantRating": "Рейтинг: {{rating}}"
   },
   "profilePage": {
     "title": "Мой профиль",
@@ -96,7 +117,9 @@
       "title": "Заголовок",
       "author": "Автор",
       "status": "Статус",
-      "actions": "Действия"
+      "actions": "Действия",
+      "active": "Активно",
+      "inactive": "Неактивно"
     },
     "categoryManagementTitle": "Управление категориями",
     "categoryTable": {
@@ -126,7 +149,25 @@
       "deleteCategoryText": "Вы уверены, что хотите удалить категорию <strong>{{name}}</strong>? Это может повлиять на существующие объявления.",
       "permissionDeniedTitle": "Доступ запрещен",
       "addCategoryTitle": "Добавить категорию",
-      "editCategoryTitle": "Редактировать категорию"
+      "editCategoryTitle": "Редактировать категорию",
+      "firstNameLabel": "Имя",
+      "lastNameLabel": "Фамилия",
+      "isAdminLabel": "Является администратором"
+    },
+    "notifications": {
+        "userUpdated": "Пользователь успешно обновлен.",
+        "userDeleted": "Пользователь удален.",
+        "offerDeleted": "Объявление удалено.",
+        "offerStatusChanged": "Статус объявления изменен.",
+        "categoryCreated": "Категория создана.",
+        "categoryUpdated": "Категория обновлена.",
+        "categoryDeleted": "Категория удалена."
     }
+  },
+  "errors": {
+    "default": "Произошла непредвиденная ошибка. Пожалуйста, попробуйте еще раз.",
+    "invalidCredentials": "Неверный email или пароль.",
+    "emailInUse": "Этот email уже зарегистрирован.",
+    "networkError": "Ошибка сети. Не удалось связаться с сервером."
   }
 }

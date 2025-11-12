@@ -19,20 +19,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  migrate:
-    image: migrate/migrate
-    container_name: masterdom_migrate
-    volumes:
-      - ./api/db/migration:/migrations
-    # Команда для выполнения миграций. Обратите внимание на `sslmode=disable` для локальной разработки.
-    command: ["-path", "/migrations", "-database", "postgres://user:password@db:5432/masterdom?sslmode=disable", "up"]
-    depends_on:
-      db:
-        condition: service_healthy
-    # Этот сервис должен выполниться один раз и остановиться.
-    # `restart: on-failure` означает, что он перезапустится, только если миграция не удалась.
-    restart: on-failure
-
   # Сервис бэкенда (Go API)
   api:
     build:
