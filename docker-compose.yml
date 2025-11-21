@@ -40,10 +40,25 @@ services:
     build:
       context: ./web
     container_name: masterdom_web
-    ports:
-      - "3000:80"
+    # Порт 3000:80 удален, так как Nginx Proxy Manager будет маршрутизировать трафик.
+    # Теперь web-сервис будет доступен только внутри Docker-сети.
     depends_on:
       - api
+    restart: unless-stopped
+
+  # Сервис Nginx Proxy Manager для управления HTTPS и проксированием
+  npm:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: masterdom_npm
+    ports:
+      - "80:80"   # HTTP
+      - "443:443" # HTTPS
+      - "81:81"   # Панель управления Nginx Proxy Manager
+    volumes:
+      - ./npm/data:/data       # Для хранения конфигурации NPM
+      - ./npm/letsencrypt:/etc/letsencrypt # Для хранения SSL-сертификатов Let's Encrypt
+    depends_on:
+      - web # Nginx Proxy Manager зависит от веб-сервиса
     restart: unless-stopped
 
 volumes:
