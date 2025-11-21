@@ -6,7 +6,7 @@ set -e
 
 # Run the database migrations
 echo "Running database migrations..."
-/app/migrate -path /app/migration -database "postgres://user:password@db:5432/masterdom?sslmode=disable" up
+/app/migrate -path /app/migration -database "$DB_URL" up
 
 echo "Migrations complete. Starting server."
 
